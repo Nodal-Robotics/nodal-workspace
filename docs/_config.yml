@@ -1,6 +1,6 @@
 title: Nodal Robotics Documentation
 description: Modular robotics framework inspired by automotive engineering
 
-theme: jekyll-theme-cayman
+theme: jekyll-theme-hacker
 
 markdown: kramdown
