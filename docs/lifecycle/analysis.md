@@ -184,8 +184,8 @@ The following practices are prohibited:
 
 ## Relation to Other Phases
 
-* Feeds into: `development.md`
-* Informed by: `verification.md`, `deployment.md`
+* Feeds into: [`development.md`](./development.md)
+* Informed by: [`verification.md`](./verification.md), [`deployment.md`](./deployment.md)
 
 ---
 
