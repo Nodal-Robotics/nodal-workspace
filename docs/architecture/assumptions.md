@@ -2,7 +2,7 @@
 
 title: Architectural Assumptions
 nav_order: 3
-parent: Architecture
+parent: index
 --------------------
 
 # Architectural Assumptions

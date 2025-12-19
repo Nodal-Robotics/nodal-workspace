@@ -1,3 +1,9 @@
+---
+title: Lifecycle
+nav_order: 3
+has_children: true
+---
+
 # System Lifecycle
 
 ## Status

@@ -1,5 +1,7 @@
 ---
 title: Architecture Decision Records
+nav_order: 8
+# has_children: true
 ---
 
 # Architecture Decision Records (ADR)

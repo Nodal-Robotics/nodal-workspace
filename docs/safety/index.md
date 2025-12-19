@@ -1,3 +1,9 @@
+---
+title: Safety
+nav_order: 5
+has_children: true
+---
+
 # Safety Case Overview
 
 ## Purpose
