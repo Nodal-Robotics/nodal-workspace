@@ -6,7 +6,7 @@ parent: Safety Case
 
 # Safety Requirements
 
-This section defines how **safety requirements (SR)** are specified, structured, allocated, and managed across the Axion Robotics / NODAL ecosystem.
+This section defines how **safety requirements (SR)** are specified, structured, allocated, and managed across the  NODAL ecosystem.
 
 Safety requirements are **normative**, **verifiable**, and **traceable** artifacts.
 They represent the contractual link between:

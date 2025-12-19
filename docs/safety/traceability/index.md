@@ -8,7 +8,7 @@ parent: Safety Case
 
 Traceability ensures that **every safety claim is justified by evidence** and that all safety-related decisions can be audited end-to-end.
 
-This section defines the **traceability model** used across the Axion Robotics workspace.
+This section defines the **traceability model** used across the Nodalworkspace.
 
 ---
 

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines how **risk acceptance decisions** are made, justified, documented, and approved within the Axion Robotics / NODAL safety framework.
+This document defines how **risk acceptance decisions** are made, justified, documented, and approved within the  NODAL safety framework.
 
 Risk acceptance is a **controlled engineering decision**, not an informal acknowledgement. Any accepted risk must be:
 
@@ -154,7 +154,7 @@ Auditors must be able to answer:
 
 ## Summary
 
-Risk acceptance in Axion Robotics is:
+Risk acceptance in Nodal is:
 
 * explicit
 * documented

@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the **mandatory format and structure** of Safety Requirements (SR) within the Axion Robotics / NODAL framework.
+This document defines the **mandatory format and structure** of Safety Requirements (SR) within the  NODAL framework.
 
 Safety Requirements translate identified hazards and accepted residual risks into **verifiable, enforceable engineering constraints**.
 

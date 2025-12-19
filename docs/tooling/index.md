@@ -5,7 +5,7 @@ nav_order: 8
 
 # Tooling
 
-This section defines the **engineering tooling framework** used across the Axion Robotics / NODAL ecosystem.
+This section defines the **engineering tooling framework** used across the  NODAL ecosystem.
 
 Tooling is considered a **system-level concern**:
 it directly impacts quality, safety, traceability, and long-term maintainability.

@@ -1,6 +1,6 @@
 # Git Workflow
 
-This document defines how Git is used within the Axion Robotics workspace.
+This document defines how Git is used within the Nodalworkspace.
 
 ---
 

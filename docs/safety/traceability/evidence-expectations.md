@@ -6,7 +6,7 @@ parent: Traceability
 
 # Evidence Expectations
 
-This document defines what constitutes **acceptable safety evidence** within the Axion Robotics / NODAL ecosystem.
+This document defines what constitutes **acceptable safety evidence** within the  NODAL ecosystem.
 
 Safety evidence is a **core engineering artifact**.  
 It substantiates safety requirements, justifies safety claims, and enables objective audits.

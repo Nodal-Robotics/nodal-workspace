@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines how **changes to Safety Requirements (SR)** are managed, reviewed, approved, and traced within the Axion Robotics / NODAL safety framework.
+This document defines how **changes to Safety Requirements (SR)** are managed, reviewed, approved, and traced within the  NODAL safety framework.
 
 Safety Requirements are **controlled safety artifacts**. Any change to a SR may have system-wide safety implications and must therefore follow a **formal change management process**.
 

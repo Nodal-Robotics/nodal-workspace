@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines the **traceability model** used in the Axion Robotics / NODAL safety framework.
+This document defines the **traceability model** used in the  NODAL safety framework.
 
 Traceability ensures that every safety-relevant decision, requirement, and implementation element is:
 

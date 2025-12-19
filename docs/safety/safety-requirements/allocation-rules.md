@@ -2,7 +2,7 @@
 
 ## Purpose
 
-This document defines how **Safety Requirements (SR)** are allocated across the Axion Robotics / NODAL system architecture.
+This document defines how **Safety Requirements (SR)** are allocated across the  NODAL system architecture.
 
 Allocation ensures that each safety requirement:
 
