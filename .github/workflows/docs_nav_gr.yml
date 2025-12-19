@@ -1,0 +1,59 @@
+name: Docs Navigation Check
+
+on:
+  pull_request:
+    paths:
+      - "docs/**/*.md"
+
+jobs:
+  nav-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check nav_order and parent consistency
+        run: |
+          python3 << 'EOF'
+          import os, re, sys
+
+          titles = {}
+          errors = []
+
+          def parse_frontmatter(path):
+              with open(path) as f:
+                  content = f.read()
+              if not content.startswith('---'):
+                  return {}
+              fm = content.split('---')[1]
+              data = {}
+              for line in fm.splitlines():
+                  if ':' in line:
+                      k, v = line.split(':', 1)
+                      data[k.strip()] = v.strip()
+              return data
+
+          for root, _, files in os.walk("docs"):
+              for file in files:
+                  if file.endswith(".md"):
+                      path = os.path.join(root, file)
+                      fm = parse_frontmatter(path)
+                      if 'title' in fm:
+                          titles[fm['title']] = path
+
+          for title, path in titles.items():
+              fm = parse_frontmatter(path)
+              parent = fm.get('parent')
+              if parent and parent not in titles:
+                  errors.append(f"{path}: parent '{parent}' not found")
+
+              if parent and 'nav_order' not in fm:
+                  errors.append(f"{path}: missing nav_order")
+
+          if errors:
+              print("❌ Navigation errors found:")
+              for e in errors:
+                  print(" -", e)
+              sys.exit(1)
+
+          print("✅ Navigation structure OK")
+          EOF

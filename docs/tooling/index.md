@@ -1,10 +1,8 @@
 ---
 title: Tooling
-nav_order: 7
+nav_order: 8
 has_children: true
-parent: Documentation
 ---
-
 # Tooling
 
 This section defines the **engineering tooling framework** used across the  NODAL ecosystem.

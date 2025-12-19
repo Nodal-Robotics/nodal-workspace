@@ -2,9 +2,7 @@
 title: Safety
 nav_order: 5
 has_children: true
-parent: Documentation
 ---
-
 # Safety Case Overview
 
 ## Purpose

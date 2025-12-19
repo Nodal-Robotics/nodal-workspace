@@ -31,10 +31,6 @@ def load_pages():
         nav_order = fm.get("nav_order")
         parent = fm.get("parent")
 
-        if parent is None:
-            if md.name == "index.md" and md.parent.name != "docs":
-                parent = "Documentation"
-
         if not title or nav_order is None:
             raise DocError(f"Missing title or nav_order in {md}")
 

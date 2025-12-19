@@ -2,6 +2,7 @@
 title: Page Template
 nav_order: 10
 permalink: /page-template
+status: draft
 ---
 
 ```md
@@ -10,6 +11,9 @@ title: <Page Title>
 parent: <Parent Title>
 nav_order: <integer>
 permalink: /<section>/<page>/
+status: <draft/normative/informative>
+related:
+  - <page>
 ---
 
 # <Page Title>

@@ -2,7 +2,6 @@
 title: Architecture
 nav_order: 2
 has_children: true
-parent: Documentation
 status: <draft/normative/informative>
 related:
   - "System boundaries"

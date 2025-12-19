@@ -1,10 +1,9 @@
 ---
 title: Architecture Decision Records
-nav_order: 8
-# parent: Governance
+nav_order: 5
+parent: Governance
 # has_children: true
 ---
-
 # Architecture Decision Records (ADR)
 
 This section contains Architecture Decision Records that document
