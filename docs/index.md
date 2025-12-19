@@ -1,5 +1,5 @@
 ---
-title: System Documentation
+title: Nodal Robotics – System Documentation
 nav_order: 1
 ---
 
