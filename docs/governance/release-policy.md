@@ -1,3 +1,9 @@
+---
+title: Release Policy
+nav_order: 3
+parent: Governance
+---
+
 # Release Policy
 
 ## Purpose

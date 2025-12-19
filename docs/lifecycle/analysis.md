@@ -1,3 +1,9 @@
+---
+title: Analysis Phase
+nav_order: 1
+parent: Lifecycle
+---
+
 # Analysis Phase
 
 ## Status

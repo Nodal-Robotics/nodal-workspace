@@ -1,8 +1,8 @@
 ---
 title: Contribution Model
-nav_order: 1
-parent: architecture
---------------------
+nav_order: 2
+parent: Governance
+---
 
 # Contribution Model
 

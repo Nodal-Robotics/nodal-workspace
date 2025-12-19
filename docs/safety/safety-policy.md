@@ -1,3 +1,9 @@
+---
+title: Safety Policy
+nav_order: 1
+parent: Safety
+---
+
 # Safety Policy
 
 ## Purpose

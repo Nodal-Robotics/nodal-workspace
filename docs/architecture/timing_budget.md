@@ -1,3 +1,10 @@
+---
+
+title: System Boundaries
+nav_order: 6
+parent: Architecture
+---
+
 # Timing Budget & Determinism Policy
 
 ## Status

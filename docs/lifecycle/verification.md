@@ -1,3 +1,9 @@
+---
+title: Verification Phase
+nav_order: 3
+parent: Lifecycle
+---
+
 # Verification Phase
 
 ## Status

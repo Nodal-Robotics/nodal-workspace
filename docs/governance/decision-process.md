@@ -1,9 +1,8 @@
 ---
-
-title: System Architecture Overview
+title: Decision Process
 nav_order: 1
-parent: architecture
---------------------
+parent: Governance
+---
 
 # Decision Process
 

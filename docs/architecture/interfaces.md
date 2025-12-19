@@ -1,9 +1,9 @@
 ---
 
 title: Architectural Interfaces
-nav_order: 5
-parent: architecture
---------------------
+nav_order: 4
+parent: Architecture
+---
 
 # Architectural Interfaces
 

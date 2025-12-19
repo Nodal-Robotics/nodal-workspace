@@ -1,3 +1,9 @@
+---
+title: Safety Scope & Assumptions
+nav_order: 2
+parent: Safety
+---
+
 # Safety Scope and Assumptions
 
 ## Purpose

@@ -1,8 +1,8 @@
 ---
 title: System Architecture Overview
 nav_order: 1
-parent: architecture
---------------------
+parent: Architecture
+---
 
 # System Architecture Overview
 

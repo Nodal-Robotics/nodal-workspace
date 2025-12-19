@@ -2,8 +2,8 @@
 
 title: System Boundaries
 nav_order: 2
-parent: architecture
---------------------
+parent: Architecture
+---
 
 # System Boundaries
 

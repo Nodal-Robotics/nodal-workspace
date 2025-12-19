@@ -1,9 +1,9 @@
 ---
 
 title: Modularity Principles
-nav_order: 4
-parent: architecture
---------------------
+nav_order: 5
+parent: Architecture
+---
 
 # Modularity Principles
 

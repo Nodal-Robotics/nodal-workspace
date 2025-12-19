@@ -1,3 +1,9 @@
+---
+title: Deployment Phase
+nav_order: 4
+parent: Lifecycle
+---
+
 # Deployment Phase
 
 ## Status
