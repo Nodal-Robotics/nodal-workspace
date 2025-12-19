@@ -2,6 +2,7 @@
 title: System Architecture Overview
 nav_order: 1
 parent: Architecture
+permalink: /architecture/overview/
 ---
 
 # System Architecture Overview

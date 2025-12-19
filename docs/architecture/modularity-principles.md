@@ -3,6 +3,7 @@
 title: Modularity Principles
 nav_order: 5
 parent: Architecture
+permalink: /architecture/modularity-principles/
 ---
 
 # Modularity Principles

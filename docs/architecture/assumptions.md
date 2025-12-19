@@ -2,6 +2,7 @@
 title: Architectural Assumptions
 nav_order: 3
 parent: Architecture
+permalink: /architecture/assumptions/
 ---
 
 # Architectural Assumptions

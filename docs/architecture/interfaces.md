@@ -3,6 +3,7 @@
 title: Architectural Interfaces
 nav_order: 4
 parent: Architecture
+permalink: /architecture/interfaces/
 ---
 
 # Architectural Interfaces
