@@ -1,6 +1,23 @@
 title: Nodal Robotics Documentation
-description: Modular robotics framework inspired by automotive engineering
+description: Industrial-grade modular robotics framework
 
-theme: jekyll-theme-cayman
+remote_theme: just-the-docs/just-the-docs
 
-markdown: kramdown
+url: https://nodal-robotics.github.io
+baseurl: /nodal-workspaces
+
+color_scheme: dark
+
+search_enabled: true
+heading_anchors: true
+
+nav_sort: case_sensitive
+
+aux_links:
+  "GitHub Organization":
+    - "https://github.com/nodal-Robotics"
+  "Workspace Repository":
+    - "https://github.com/nodal-Robotics/nodal-workspace"
+
+footer_content: |
+  Nodal Robotics — Modular robotics with automotive discipline.
