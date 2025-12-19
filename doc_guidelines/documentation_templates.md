@@ -226,4 +226,4 @@ They are a mandatory part of the NODAL ecosystem.
 
 ---
 
-© Axion Robotics — NODAL Framework
+© Nodal Robotics — NODAL Framework

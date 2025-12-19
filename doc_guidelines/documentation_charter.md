@@ -2,7 +2,7 @@
 
 ## 1. Purpose of This Charter
 
-This document defines the **official documentation standards** for the **NODAL framework** and the Axion Robotics ecosystem.
+This document defines the **official documentation standards** for the **NODAL framework** and the Nodal Robotics ecosystem.
 
 Its purpose is to ensure that all NODAL documentation is:
 
@@ -67,7 +67,7 @@ Scope: global vision
 ✅ NODAL framework presentation
 ✅ philosophy and core principles
 
-Owner: Axion Robotics
+Owner: Nodal Robotics
 
 ---
 
@@ -231,4 +231,4 @@ All contributions must respect this spirit.
 
 ---
 
-© Axion Robotics — NODAL Framework
+© Nodal Robotics — NODAL Framework

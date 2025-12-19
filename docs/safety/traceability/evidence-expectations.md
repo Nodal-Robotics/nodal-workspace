@@ -1,171 +1,290 @@
+---
+title: Evidence Expectations
+nav_order: 2
+parent: Traceability
+---
+
 # Evidence Expectations
 
-## Purpose
+This document defines what constitutes **acceptable safety evidence** within the Axion Robotics / NODAL ecosystem.
 
-This document defines what constitutes **acceptable safety evidence** within the Axion Robotics / NODAL safety framework.
-
-Evidence is the objective demonstration that a **Safety Requirement (SR)** has been correctly implemented and verified.
-
-This document prevents:
-
-* superficial or cosmetic verification
-* unverifiable claims
-* non-reproducible test results
+Safety evidence is a **core engineering artifact**.  
+It substantiates safety requirements, justifies safety claims, and enables objective audits.
 
 ---
 
-## Core Principles
+## 🎯 Purpose
 
-1. **Evidence is mandatory**
-   A safety requirement is not considered verified without evidence.
+The objectives of this document are to:
 
-2. **Evidence is objective**
-   Opinions, assertions, or code comments are not evidence.
-
-3. **Evidence is reproducible**
-   An independent engineer must be able to reproduce the result.
-
-4. **Evidence matches risk level**
-   Higher risk requires stronger and more rigorous evidence.
-
-5. **Evidence is immutable**
-   Once produced, evidence shall not be altered.
+- define what is considered valid safety evidence
+- ensure consistency across repositories and modules
+- prevent weak, subjective, or unverifiable claims
+- support long-term auditability and certification readiness
 
 ---
 
-## Evidence Types
+## 🧩 Scope
 
-Acceptable evidence types include:
+This document applies to:
 
-| Evidence Type     | Description                                 |
-| ----------------- | ------------------------------------------- |
-| Test Report       | Results from executed test cases            |
-| Analysis Report   | Formal analysis or calculation              |
-| Simulation Output | Logged and parameterized simulation results |
-| Inspection Record | Structured inspection checklist             |
-| CI Artifact       | Automated pipeline outputs                  |
+- all safety requirements
+- all verification activities
+- all tools producing safety-relevant outputs
 
-Evidence must always reference the **exact SR ID** it supports.
-
----
-
-## Evidence vs Verification Method
-
-Each verification method requires specific evidence.
-
-| Verification Method | Minimum Evidence                |
-| ------------------- | ------------------------------- |
-| Test                | Test report + logs              |
-| Analysis            | Analysis document + assumptions |
-| Inspection          | Inspection checklist            |
-| Simulation          | Simulation logs + configuration |
+It applies across:
+- software modules
+- hardware components
+- tooling and processes
 
 ---
 
-## Evidence Strength by Risk Class
+## 🧠 Core Principle
 
-Evidence rigor scales with **Risk Class (RC)**.
+> **Evidence is not a document.  
+> Evidence is a reproducible result produced by a controlled process.**
 
-| Risk Class | Evidence Expectation                           |
-| ---------- | ---------------------------------------------- |
-| RC0        | Informal confirmation                          |
-| RC1        | Basic test or inspection                       |
-| RC2        | Formal test with documented results            |
-| RC3        | Independent verification + documented analysis |
-| RC4        | Not applicable (risk not acceptable)           |
+A PDF, screenshot, or statement **is not evidence by itself**.
 
 ---
 
-## Evidence Content Requirements
+## 🔗 Position in the Safety Chain
 
-Each evidence artifact must include:
+Evidence occupies a fixed position in the safety traceability chain:
 
-* reference to Safety Requirement ID
-* verification method used
-* environment and configuration
-* execution date
-* responsible person or system
-* pass/fail outcome
+- Hazard
+- Safety Requirement
+- Design / ADR
+- Implementation
+- Verification
+- Evidence
+- Safety Claim
 
-Missing information invalidates the evidence.
-
----
-
-## GitHub Integration
-
-### Evidence Representation
-
-Evidence is referenced through:
-
-* links to CI artifacts
-* attached reports
-* repository paths
-
-Evidence links must be recorded in:
-
-* Safety Requirement issue
-* Verification issue or PR
+If evidence is missing, the safety claim is invalid.
 
 ---
 
-### Required GitHub Fields
+## ✅ General Validity Criteria
 
-* `Verification Status`
-* `Evidence Link`
-* `Verification Date`
+An artifact is considered **valid safety evidence** only if **all** of the following conditions are met:
 
----
+1. **Traceable**  
+   - Linked to a specific safety requirement
+   - Linked to a specific commit or version
 
-## Independence Requirements
+2. **Reproducible**  
+   - Can be regenerated using the documented process
+   - Independent of developer machine state
 
-For higher risk classes:
+3. **Objective**  
+   - Does not rely on subjective interpretation
+   - Has a clear pass/fail or measurable outcome
 
-* RC2: peer review recommended
-* RC3: independent verification required
+4. **Tool-Generated or Justified**  
+   - Produced by a documented tool  
+   - OR manually produced with explicit justification
 
-The verifier must not be the original implementer.
+5. **Preserved**  
+   - Stored or referenced in a durable location
+   - Accessible for future audit
 
----
-
-## Evidence Retention
-
-Evidence must be retained:
-
-* for the lifetime of the corresponding release
-* and any derived releases
-
-Evidence may only be archived or removed following a formal review.
+If **any** criterion is not met, the artifact is **not acceptable** as safety evidence.
 
 ---
 
-## Audit Expectations
+## 🛠️ Tool Classification and Evidence Acceptance
 
-Auditors must be able to:
+### Class A — Safety-Critical Tools
 
-* locate evidence from SR or hazard
-* verify reproducibility
-* confirm independence when required
+**Examples:**
+- compiler
+- code generator
+- blocking static analysis
+- hardware synthesis tools
 
-Evidence gaps are treated as safety non-conformities.
+**Evidence Types:**
+- build logs
+- analysis reports
+- generated artifacts hashes
+
+**Requirements:**
+- tool version explicitly documented
+- deterministic execution
+- changes subject to impact analysis
+- evidence must be reproducible
 
 ---
 
-## Relationship to Other Documents
+### Class B — Safety-Support Tools
 
-* Traceability model → `traceability-model.md`
-* Verification lifecycle → `safety-lifecycle/verification-phase.md`
-* Safety requirements → `safety-requirements/`
+**Examples:**
+- unit / integration test frameworks
+- simulators
+- coverage tools
+
+**Evidence Types:**
+- test reports
+- simulation outputs
+- coverage metrics
+
+**Requirements:**
+- assumptions documented
+- limitations stated
+- results reproducible
+- scope clearly defined
+
+Simulation results are acceptable **only** within the documented model limits.
 
 ---
 
-## Summary
+### Class C — Informational Tools
 
-Acceptable safety evidence is:
+**Examples:**
+- formatters
+- linters (non-blocking)
+- dashboards
 
-* objective
-* reproducible
-* proportional to risk
-* traceable
-* immutable
+**Evidence Types:**
+- informational only
 
-Without evidence, there is no verified safety.
+❌ **Not acceptable as direct safety evidence**
+
+---
+
+## 🧪 Accepted Evidence Types
+
+### 1. Automated Test Results
+
+**Examples:**
+- unit test reports
+- integration test reports
+- HIL/SIL test outputs
+
+**Acceptance Conditions:**
+- automated execution
+- version-controlled test code
+- clear pass/fail criteria
+- linked to safety requirement
+
+---
+
+### 2. Static Analysis Reports
+
+**Examples:**
+- MISRA compliance reports
+- rule violation summaries
+
+**Acceptance Conditions:**
+- rule set defined
+- scope clearly stated
+- justification for deviations documented
+
+---
+
+### 3. Build Artifacts
+
+**Examples:**
+- binary hashes
+- compilation logs
+- linker maps
+
+**Acceptance Conditions:**
+- deterministic build
+- toolchain documented
+- artifact traceable to commit
+
+---
+
+### 4. Simulation Results
+
+**Examples:**
+- timing simulations
+- fault injection results
+
+**Acceptance Conditions:**
+- model assumptions documented
+- limitations explicitly stated
+- reproducibility demonstrated
+
+Simulation **does not replace verification** unless explicitly justified.
+
+---
+
+### 5. Manual Analysis (Exceptional)
+
+**Examples:**
+- formal reasoning
+- expert review
+- architectural argumentation
+
+**Acceptance Conditions:**
+- explicit justification
+- documented methodology
+- peer review
+- traceable to requirement
+
+Manual evidence is **never the default**.
+
+---
+
+## ❌ Non-Acceptable Evidence
+
+The following are explicitly rejected as safety evidence:
+
+- screenshots
+- unversioned documents
+- verbal statements
+- undocumented test runs
+- “it works on my machine”
+- logs without context or traceability
+
+---
+
+## 🔁 Evidence Evolution and Change
+
+When any of the following changes:
+
+- safety requirement
+- implementation
+- verification method
+- tooling version
+
+→ existing evidence must be **re-evaluated**.
+
+Outdated evidence is considered **invalid**.
+
+---
+
+## 🔗 Integration with GitHub
+
+Evidence must be linked using:
+
+- Issue references
+- Pull Requests
+- CI run identifiers
+- Artifact storage links
+
+GitHub is used as a **traceability carrier**, not as the evidence itself.
+
+---
+
+## 🛡️ Audit Readiness
+
+For any safety claim, it must be possible to:
+
+1. identify the safety requirement
+2. identify the verification method
+3. retrieve the evidence
+4. reproduce the result
+5. justify the conclusion
+
+Failure at any step invalidates the claim.
+
+---
+
+## 📌 References
+
+- Traceability Model
+- Safety Requirements
+- Tooling and Safety Evidence
+- Safety Lifecycle
