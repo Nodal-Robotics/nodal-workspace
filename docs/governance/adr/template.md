@@ -1,6 +1,6 @@
 ---
 title: ADR-XXXX – <Decision Title>
-parent: adr
+parent: Architecture Decision Records
 nav_exclude: true
 ---
 

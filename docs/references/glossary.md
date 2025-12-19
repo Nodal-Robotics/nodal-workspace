@@ -1,7 +1,7 @@
 ---
 title: Glossary
 nav_order: 3
-parent: references
+parent: References
 ---
 
 # Glossary
