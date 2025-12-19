@@ -1,6 +1,6 @@
 ---
-title: Build Tooling
-nav_order: 5
+title: CI Policy
+nav_order: 7
 parent: Tooling
 ---
 
