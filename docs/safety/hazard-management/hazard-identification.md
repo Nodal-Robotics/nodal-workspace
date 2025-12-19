@@ -1,7 +1,7 @@
 ---
-title: System Architecture Overview
+title: Hazard Identification
 nav_order: 1
-parent: Governance
+parent: Hazard Management
 ---
 
 # Hazard Identification
