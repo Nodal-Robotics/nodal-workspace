@@ -1,9 +1,10 @@
 name: Docs Navigation Check
 
 on:
-  pull_request:
+  push:
     paths:
       - "docs/**/*.md"
+      - "docs/*.md"
 
 jobs:
   nav-check:
