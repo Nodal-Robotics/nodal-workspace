@@ -4,10 +4,14 @@ on:
   push:
     paths:
       - "docs/**/*.md"
-
+      - '!docs/NAVIGATION.md'
 jobs:
   nav-check:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write  # Nécessaire pour commit
+      pull-requests: write  # Nécessaire pour commenter sur les PRs
+ 
     steps:
       - uses: actions/checkout@v4
 
@@ -61,3 +65,60 @@ jobs:
       - name: Validate documentation navigation
         run: |
           python3 scripts/doc-graph/generate_doc_graph.py
+        continue-on-error: true
+ 
+      - name: Check if navigation file changed
+        id: check_changes
+        run: |
+          git add docs/NAVIGATION.md
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+      
+      - name: Commit and push changes (on push to main)
+        if: github.event_name == 'push' && steps.check_changes.outputs.changed == 'true' && steps.validate.outcome == 'success'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/NAVIGATION.md
+          git commit -m "chore: update documentation navigation tree [skip ci]"
+          git push
+      
+      - name: Commit changes to PR branch
+        if: github.event_name == 'pull_request' && steps.check_changes.outputs.changed == 'true' && steps.validate.outcome == 'success'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add docs/NAVIGATION.md
+          git commit -m "chore: update documentation navigation tree"
+          git push origin HEAD:${{ github.head_ref }}
+      
+      - name: Comment on PR with success
+        if: github.event_name == 'pull_request' && steps.validate.outcome == 'success' && steps.check_changes.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Documentation navigation validated and `docs/NAVIGATION.md` updated automatically.'
+            })
+      
+      - name: Comment on PR with failure
+        if: github.event_name == 'pull_request' && steps.validate.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ Documentation navigation validation failed. Please check the workflow logs for details and fix the issues before merging.'
+            })
+      
+      - name: Fail the workflow if validation failed
+        if: steps.validate.outcome == 'failure'
+        run: exit 1
