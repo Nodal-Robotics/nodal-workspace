@@ -44,4 +44,3 @@ Describe the system, process, or decision context relevant to this document.
 - Related documentation
 - Related ADRs
 - Related issues or projects
-
