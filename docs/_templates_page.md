@@ -3,7 +3,7 @@ title: <Page Title>
 parent: <Parent Title>
 nav_order: <integer>
 permalink: /<section>/<page>/
-nav_exclude: true # Need to be removed in order to show the child file in the navbar
+nav_exclude: true # Need to be removed in order to show the child file in the navbar.
 ---
 
 ---
