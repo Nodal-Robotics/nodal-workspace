@@ -60,4 +60,4 @@ jobs:
 
       - name: Validate documentation navigation
         run: |
-          python3 tools/doc-graph/generate_doc_graph.py
+          python3 scripts/doc-graph/generate_doc_graph.py
