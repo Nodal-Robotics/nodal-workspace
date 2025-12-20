@@ -70,6 +70,11 @@ def main(input_file: str):
             non_empty = [s for s, v in state["sections"].items() if v["content"].strip()]
             print(f"empty value: {non_empty} test")
             if not non_empty:
+                
+                state["state"]["status"] = AdrStatus.APPROVED.value
+                state["state"]["approved_by"] = c["author"]
+                state["state"]["approved_at"] = c["created_at"]
+
                 print(f"value: {non_empty} test")
                 raise RuntimeError("Cannot approve ADR: all sections are empty")
 
@@ -77,10 +82,6 @@ def main(input_file: str):
             missing = [s for s in REQUIRED_SECTIONS if not state["sections"][s]["content"].strip()]
             if missing:
                 raise RuntimeError(f"Cannot approve ADR: missing required sections: {missing}")
-
-            state["state"]["status"] = AdrStatus.APPROVED.value
-            state["state"]["approved_by"] = c["author"]
-            state["state"]["approved_at"] = c["created_at"]
 
         elif action == "reject":
             state["state"]["status"] = AdrStatus.REJECTED.value
