@@ -29,6 +29,7 @@ def main(input_file: str):
     comments = payload["comments"]
     meta = payload["meta"]
 
+    # Chargement de l'état existant ou création d'un nouveau
     try:
         state = load_state(STATE_FILE)
     except FileNotFoundError:
@@ -67,7 +68,9 @@ def main(input_file: str):
         elif action == "approve":
             # Vérifie que l'ADR n'est pas vide
             non_empty = [s for s, v in state["sections"].items() if v["content"].strip()]
-            if non_empty:
+            print(f"empty value: {non_empty} test")
+            if not non_empty:
+                print(f"value: {non_empty} test")
                 raise RuntimeError("Cannot approve ADR: all sections are empty")
 
             # Vérifie que les sections obligatoires sont présentes
@@ -79,21 +82,22 @@ def main(input_file: str):
             state["state"]["approved_by"] = c["author"]
             state["state"]["approved_at"] = c["created_at"]
 
+        elif action == "reject":
+            state["state"]["status"] = AdrStatus.REJECTED.value
+            state["state"]["rejected_by"] = c["author"]
+            state["state"]["rejected_at"] = c["created_at"]
     save_state(state, STATE_FILE)
 
-    if state["state"]["status"] != AdrStatus.APPROVED.value:
-        return
+    # Si l'ADR est approuvé, générer le fichier final
+    if state["state"]["status"] == AdrStatus.APPROVED.value:
+        with open("adr_template.md", "r") as f:
+            template = f.read()
 
-    with open("adr_template.md", "r") as f:
-        template = f.read()
+        body = inject_sections(template, state)
+        filename = adr_filename_from_state(state)
 
-    body = inject_sections(template, state)
-    filename = adr_filename_from_state(state)
+        # Écriture du fichier ADR
+        with open(f"docs/adr/{filename}", "w") as f:
+            f.write(body)
 
-    with open(filename, "w") as f:
-        f.write(body)
-
-    print(f"ADR_FILE={filename}")
-
-if __name__ == "__main__":
-    main(sys.argv[1])
+        print(f"ADR_FILE=docs/adr/{filename}")
