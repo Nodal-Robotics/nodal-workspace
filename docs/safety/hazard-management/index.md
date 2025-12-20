@@ -1,6 +1,6 @@
 ---
 title: Hazard Management
-nav_order: 11
+nav_order: 3
 parent: Safety
 has_children: true
 ---

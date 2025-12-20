@@ -1,6 +1,6 @@
 ---
 title: Verification Phase — Safety Activities
-nav_order: 4
+nav_order: 3
 parent: Safety Lifecycle
 ---
 

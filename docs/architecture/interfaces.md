@@ -1,7 +1,7 @@
 ---
 
 title: Architectural Interfaces
-nav_order: 4
+nav_order: 3
 parent: Architecture
 permalink: /architecture/interfaces/
 ---

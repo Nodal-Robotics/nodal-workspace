@@ -1,6 +1,6 @@
 ---
 title: Architecture Decision Records
-nav_order: 5
+nav_order: 4
 parent: Governance
 # has_children: true
 ---

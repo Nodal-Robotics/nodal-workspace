@@ -15,11 +15,11 @@ on:
 jobs:
   update-navigation:
     runs-on: ubuntu-latest
-    
+
     permissions:
       contents: write  # Nécessaire pour commit
       pull-requests: write  # Nécessaire pour commenter sur les PRs
-    
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,17 +31,17 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install pyyaml
-      
+
       - name: Run navigation validation and generation
         id: validate
         run: |
           python scripts/doc-graph/generate_doc_graph.py
         continue-on-error: true
-      
+
       - name: Configure Git
         if: steps.validate.outcome == 'success'
         run: |
@@ -51,10 +51,8 @@ jobs:
       - name: Check if navigation file changed
         id: check_changes
         run: |
-          cat docs/NAVIGATION.md
           # Ajouter le fichier au staging
           git add docs/NAVIGATION.md
-          echo "Test" >> docs/safety/safety-policy.md
 
           # Vérifier s'il y a des changements dans le staging
           if git diff --cached --quiet; then
@@ -64,7 +62,7 @@ jobs:
             echo "changed=true" >> $GITHUB_OUTPUT
             echo "Changes detected, will commit"
           fi
-      
+
       - name: Commit and push changes
         if: steps.check_changes.outputs.changed == 'true' && steps.validate.outcome == 'success'
         run: |

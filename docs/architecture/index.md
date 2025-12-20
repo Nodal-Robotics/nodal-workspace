@@ -1,8 +1,8 @@
 ---
 title: Architecture
-nav_order: 2
+nav_order: 4
 has_children: true
-status: <draft/normative/informative>
+status: draft
 related:
   - "System boundaries"
   - "Architectural assumptions"

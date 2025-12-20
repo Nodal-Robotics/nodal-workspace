@@ -1,6 +1,6 @@
 ---
 title: Traceability
-nav_order: 75
+nav_order: 6
 parent: Safety
 has_children: true
 ---
