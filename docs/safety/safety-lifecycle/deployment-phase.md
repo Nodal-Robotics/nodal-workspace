@@ -1,6 +1,6 @@
 ---
 title: Deployment Phase — Safety Activities
-nav_order: 5
+nav_order: 4
 parent: Safety Lifecycle
 ---
 

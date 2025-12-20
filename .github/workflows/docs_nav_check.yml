@@ -1,59 +1,98 @@
-name: Docs Navigation Check
+name: Update Documentation Navigation
 
 on:
   pull_request:
     paths:
-      - "docs/**/*.md"
+      - 'docs/**/*.md'
+      - '!docs/NAVIGATION.md'
 
 jobs:
-  nav-check:
+  update-navigation:
     runs-on: ubuntu-latest
+
+    permissions:
+      contents: write
+      pull-requests: write
+
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0  # Fetch tout l'historique pour git diff
+      
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
 
-      - name: Check nav_order and parent consistency
+      - name: Install dependencies
         run: |
-          python3 << 'EOF'
-          import os, re, sys
+          pip install pyyaml
+    
+      - name: Run navigation validation and generation
+        id: validate
+        run: |
+          python scripts/doc-graph/generate_doc_graph.py
+        continue-on-error: true
 
-          titles = {}
-          errors = []
+      - name: Configure Git
+        if: steps.validate.outcome == 'success'
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
 
-          def parse_frontmatter(path):
-              with open(path) as f:
-                  content = f.read()
-              if not content.startswith('---'):
-                  return {}
-              fm = content.split('---')[1]
-              data = {}
-              for line in fm.splitlines():
-                  if ':' in line:
-                      k, v = line.split(':', 1)
-                      data[k.strip()] = v.strip()
-              return data
+      - name: Check if navigation file changed
+        id: check_changes
+        run: |
+          # Ajouter le fichier au staging
+          git add docs/NAVIGATION.md
 
-          for root, _, files in os.walk("docs"):
-              for file in files:
-                  if file.endswith(".md"):
-                      path = os.path.join(root, file)
-                      fm = parse_frontmatter(path)
-                      if 'title' in fm:
-                          titles[fm['title']] = path
+          # Vérifier s'il y a des changements dans le staging
+          if git diff --cached --quiet; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+            echo "No changes to commit"
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+            echo "Changes detected, will commit"
+          fi
 
-          for title, path in titles.items():
-              fm = parse_frontmatter(path)
-              parent = fm.get('parent')
-              if parent and parent not in titles:
-                  errors.append(f"{path}: parent '{parent}' not found")
+      - name: Commit and push changes
+        if: steps.check_changes.outputs.changed == 'true' && steps.validate.outcome == 'success'
+        run: |
+          # Le fichier est déjà dans le staging depuis check_changes
+          if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+            git commit -m "chore: update documentation navigation tree [skip ci]"
+          else
+            git commit -m "chore: update documentation navigation tree"
+          fi
+          
+          git push
 
-              if parent and 'nav_order' not in fm:
-                  errors.append(f"{path}: missing nav_order")
+      - name: Comment on PR with success
+        if: github.event_name == 'pull_request' && steps.validate.outcome == 'success' && steps.check_changes.outputs.changed == 'true'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '✅ Documentation navigation validated and `docs/NAVIGATION.md` updated automatically.'
+            })
 
-          if errors:
-              print("❌ Navigation errors found:")
-              for e in errors:
-                  print(" -", e)
-              sys.exit(1)
+      - name: Comment on PR with failure
+        if: github.event_name == 'pull_request' && steps.validate.outcome == 'failure'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: '❌ Documentation navigation validation failed. Please check the workflow logs for details and fix the issues before merging.'
+            })
 
-          print("✅ Navigation structure OK")
-          EOF
+      - name: Fail the workflow if validation failed
+        if: steps.validate.outcome == 'failure'
+        run: exit 1

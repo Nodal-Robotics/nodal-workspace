@@ -1,6 +1,6 @@
 ---
 
-title: System Boundaries
+title: Timing Budget
 nav_order: 6
 parent: Architecture
 permalink: /architecture/timing-budget/

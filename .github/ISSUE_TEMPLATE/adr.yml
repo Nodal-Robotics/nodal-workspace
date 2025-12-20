@@ -1,0 +1,52 @@
+name: Architectural Decision
+description: Record a structural architectural decision
+title: "ADR: <short decision title>"
+labels: ["adr"]
+body:
+  - type: textarea
+    id: context
+    attributes:
+      label: Context
+      description: What problem are we solving?
+    validations:
+      required: true
+
+  - type: textarea
+    id: decision
+    attributes:
+      label: Decision
+      description: What is the chosen solution?
+    validations:
+      required: true
+
+  - type: textarea
+    id: rationale
+    attributes:
+      label: Rationale
+      description: Why this option?
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+
+  - type: dropdown
+    id: safety
+    attributes:
+      label: Safety Impact
+      options:
+        - None
+        - Low
+        - Medium
+        - High
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      options:
+        - Workspace
+        - Multiple Modules
+        - Single Module

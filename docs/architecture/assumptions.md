@@ -1,6 +1,6 @@
 ---
 title: Architectural Assumptions
-nav_order: 3
+nav_order: 22
 parent: Architecture
 permalink: /architecture/assumptions/
 ---

@@ -1,16 +1,19 @@
 ---
-title: <Page Title>
-parent: <Parent Title>
-nav_order: <integer>
-permalink: /<section>/<page>/
-nav_exclude: true # Need to be removed in order to show the child file in the navbar.
+title: Page Template
+nav_order: 10
+permalink: /page-template
+status: draft
 ---
 
+```md
 ---
 title: <Page Title>
 parent: <Parent Title>
 nav_order: <integer>
 permalink: /<section>/<page>/
+status: <draft/normative/informative>
+related:
+  - <page>
 ---
 
 # <Page Title>
@@ -44,3 +47,4 @@ Describe the system, process, or decision context relevant to this document.
 - Related documentation
 - Related ADRs
 - Related issues or projects
+```
