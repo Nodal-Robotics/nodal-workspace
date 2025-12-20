@@ -237,7 +237,8 @@ jobs:
             - \`/adr approve\` - Mark as approved and generate ADR document
             - \`/adr reject\` - Reject this ADR (close without generating document)
             - \`/adr status\` - Check current approval status
-            
+            - \`/adr fill\`   - fill the section
+
             **Note**: The ADR will only be generated when:
             1. Required sections are filled (Context, Decision, Consequences)
             2. Command \`/adr approve\` is issued by a maintainer
