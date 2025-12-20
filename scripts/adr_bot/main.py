@@ -102,3 +102,6 @@ def main(input_file: str):
             f.write(body)
 
         print(f"ADR_FILE=docs/adr/{filename}")
+
+if __name__ == "__main__":
+    main(sys.argv[1])
