@@ -564,15 +564,22 @@ jobs:
         run: |
           pip install PyGithub pyyaml requests
       
-      - name: Generate ADR document
+      
+      - name: Run ADR bot
         if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
         id: generate
         run: |
-          python scripts/adr/generate_adr.py \
-            --discussion-number ${{ github.event.discussion.number }} \
-            --github-token ${{ secrets.GITHUB_TOKEN }} \
-            --repo ${{ github.repository }}
-        continue-on-error: true
+          python scripts/adr_bot/main.py input.json
+
+      # - name: Generate ADR document
+      #   if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
+      #   id: generate
+      #   run: |
+      #     python scripts/adr/generate_adr.py \
+      #       --discussion-number ${{ github.event.discussion.number }} \
+      #       --github-token ${{ secrets.GITHUB_TOKEN }} \
+      #       --repo ${{ github.repository }}
+      #   continue-on-error: true
       
       - name: Configure Git
         if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.generate.outcome == 'success'
@@ -665,10 +672,7 @@ jobs:
             
             Thank you all for your participation! 🙌`
             });
-      - name: Run ADR bot
-        run: |
-          python adr_bot/main.py input.json
-      
+
       - name: Handle rejection or no approval
         if: "!fromJSON(steps.check_approval.outputs.result).shouldGenerate"
         uses: actions/github-script@v7
