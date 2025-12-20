@@ -665,6 +665,9 @@ jobs:
             
             Thank you all for your participation! 🙌`
             });
+      - name: Run ADR bot
+        run: |
+          python adr_bot/main.py input.json
       
       - name: Handle rejection or no approval
         if: "!fromJSON(steps.check_approval.outputs.result).shouldGenerate"
