@@ -33,24 +33,37 @@ def main(input_file: str):
         section = parsed["section"]
         content = parsed["content"]
 
+        # Vérification des droits mainteneur pour approve/reject
         if action in {"approve", "reject"}:
             if not is_maintainer(c["author_role"]):
-                continue
+                continue  # ignore la commande
 
+        # Gestion des commandes
         if action == "fill":
+            if not section or not content or not content.strip():
+                raise ValueError("/adr fill requires section and non-empty content")
             state["sections"][section]["content"] = content
+            state["sections"][section]["last_updated_by"] = c["author"]
+            state["sections"][section]["last_updated_at"] = c["created_at"]
 
         elif action == "append":
+            if not section or not content or not content.strip():
+                raise ValueError("/adr append requires section and non-empty content")
             cur = state["sections"][section]["content"]
-            state["sections"][section]["content"] = cur + "\n\n" + content if cur else content
+            state["sections"][section]["content"] = (cur + "\n\n" + content) if cur else content
+            state["sections"][section]["last_updated_by"] = c["author"]
+            state["sections"][section]["last_updated_at"] = c["created_at"]
 
         elif action == "approve":
-            missing = [
-                s for s in REQUIRED_SECTIONS
-                if not state["sections"][s]["content"].strip()
-            ]
+            # Vérifie que l'ADR n'est pas vide
+            non_empty = [s for s, v in state["sections"].items() if v["content"].strip()]
+            if not non_empty:
+                raise RuntimeError("Cannot approve ADR: all sections are empty")
+
+            # Vérifie que les sections obligatoires sont présentes
+            missing = [s for s in REQUIRED_SECTIONS if not state["sections"][s]["content"].strip()]
             if missing:
-                raise RuntimeError(f"Missing sections: {missing}")
+                raise RuntimeError(f"Cannot approve ADR: missing required sections: {missing}")
 
             state["state"]["status"] = AdrStatus.APPROVED.value
             state["state"]["approved_by"] = c["author"]
