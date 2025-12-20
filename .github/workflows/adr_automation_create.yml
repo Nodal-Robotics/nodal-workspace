@@ -17,7 +17,7 @@ jobs:
     permissions:
       issues: write
       discussions: write
-      contents: read
+      contents: read|write
     
     steps:
       - name: Check if already has discussion
