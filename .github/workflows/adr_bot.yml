@@ -19,6 +19,321 @@ jobs:
         with:
           python-version: '3.11'
 
+      - name: Check if already has discussion
+        id: check_existing
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            
+            // Vérifier si une discussion existe déjà pour cette issue
+            const comments = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issue.number
+            });
+            
+            const hasDiscussion = comments.data.some(c => 
+              c.user.type === 'Bot' && 
+              c.body.includes('🏛️ **ADR Discussion Created**')
+            );
+            
+            return !hasDiscussion;
+      
+      - name: Analyze if ADR is needed
+        if: fromJSON(steps.check_existing.outputs.result)
+        id: analyze
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const issue = context.payload.issue;
+            
+            // Critères de détection d'un ADR
+            const hasADRLabel = issue.labels.some(l => 
+              ['adr', 'architecture', 'design-decision'].includes(l.name.toLowerCase())
+            );
+            
+            const adrKeywords = [
+              'architecture', 'architectural', 'design decision',
+              'adr', 'technical decision', 'system design',
+              'refactor', 'redesign', 'architectural choice'
+            ];
+            
+            const titleLower = issue.title.toLowerCase();
+            const bodyLower = (issue.body || '').toLowerCase();
+            
+            const hasKeywords = adrKeywords.some(kw => 
+              titleLower.includes(kw) || bodyLower.includes(kw)
+            );
+            
+            const isADR = hasADRLabel || hasKeywords;
+            
+            console.log(`Issue #${issue.number}: ADR detection = ${isADR}`);
+            console.log(`  - Has ADR label: ${hasADRLabel}`);
+            console.log(`  - Has keywords: ${hasKeywords}`);
+            
+            return {
+              isADR: isADR,
+              issueNumber: issue.number,
+              issueTitle: issue.title,
+              issueBody: issue.body || ''
+            };
+      
+      - name: Get discussion category ID
+        if: fromJSON(steps.check_existing.outputs.result) && fromJSON(steps.analyze.outputs.result).isADR
+        id: get_category
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Récupérer toutes les catégories de discussion
+            const result = await github.graphql(`
+              query($owner: String!, $repo: String!) {
+                repository(owner: $owner, name: $repo) {
+                  discussionCategories(first: 20) {
+                    nodes {
+                      id
+                      name
+                    }
+                  }
+                }
+              }
+            `, {
+              owner: context.repo.owner,
+              repo: context.repo.repo
+            });
+            
+            const categories = result.repository.discussionCategories.nodes;
+            
+            console.log('📋 Available discussion categories:');
+            categories.forEach(cat => {
+              console.log(`  - ${cat.name}: ${cat.id}`);
+            });
+            
+            // Chercher la catégorie "Architecture Decisions" (ou variantes)
+            const possibleNames = [
+              'Architecture Decisions',
+              'Architecture Decision Records',
+              'ADR',
+              'Architectural Decisions',
+              'architecture decisions',
+              'adr'
+            ];
+            
+            let category = categories.find(cat => 
+              possibleNames.some(name => 
+                cat.name.toLowerCase() === name.toLowerCase()
+              )
+            );
+            
+            // Si pas trouvée, utiliser la première catégorie disponible
+            if (!category && categories.length > 0) {
+              category = categories[0];
+              console.log(`⚠️  No "Architecture Decisions" category found, using: ${category.name}`);
+            }
+            
+            if (!category) {
+              throw new Error('No discussion categories found! Please create at least one discussion category in your repository.');
+            }
+            
+            console.log(`✅ Using category: ${category.name} (${category.id})`);
+            
+            return {
+              categoryId: category.id,
+              categoryName: category.name
+            };
+      
+      - name: Create ADR discussion
+        if: fromJSON(steps.check_existing.outputs.result) && fromJSON(steps.analyze.outputs.result).isADR
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.ADR_BOT_TOKEN }}
+          script: |
+            const analysis = ${{ steps.analyze.outputs.result }};
+            const category = ${{ steps.get_category.outputs.result }};
+            
+            const discussionBody = `
+            # 🏛️ Architecture Decision Record Discussion
+            
+            **Related Issue**: #${analysis.issueNumber}
+            **Status**: 🟡 Under Discussion
+            
+            ---
+            
+            ## 📋 Original Issue Context
+            
+            ${analysis.issueBody}
+            
+            ---
+            
+            ## 📝 ADR Sections to Complete
+            
+            Please fill in the sections below through discussion comments. Use the section headers to organize your thoughts.
+            
+            ### \`## Context\`
+            
+            _What is the architectural problem or decision we need to make?_
+            
+            - Current situation
+            - Constraints and requirements  
+            - Why this decision is needed
+            
+            ---
+            
+            ### \`## Decision\`
+            
+            _What is the proposed architectural solution?_
+            
+            - Describe the decision in detail
+            - Technical approach
+            - Key components involved
+            
+            ---
+            
+            ### \`## Alternatives\`
+            
+            _What other options were considered?_
+            
+            - Alternative 1: Description + why rejected
+            - Alternative 2: Description + why rejected
+            
+            ---
+            
+            ### \`## Consequences\`
+            
+            _What are the impacts of this decision?_
+            
+            **Positive:**
+            - Benefit 1
+            - Benefit 2
+            
+            **Negative:**
+            - Trade-off 1
+            - Trade-off 2
+            
+            ---
+            
+            ### \`## Safety Impact\` (if applicable)
+            
+            - SIL Level: [None / SIL 1 / SIL 2 / SIL 3 / SIL 4]
+            - Related Requirements: SR-XXX, SR-YYY
+            - Safety justification
+            
+            ---
+            
+            ### \`## Implementation\`
+            
+            - Modules affected
+            - Migration strategy
+            - Timeline
+            
+            ---
+            
+            ## ✅ Validation Commands
+            
+            Once consensus is reached, use these commands to proceed:
+            
+            - \`/adr approve\` - Mark as approved and generate ADR document
+            - \`/adr reject\` - Reject this ADR (close without generating document)
+            - \`/adr status\` - Check current approval status
+            - \`/adr fill\`   - fill the section
+
+            **Note**: The ADR will only be generated when:
+            1. Required sections are filled (Context, Decision, Consequences)
+            2. Command \`/adr approve\` is issued by a maintainer
+            3. Discussion is closed
+            
+            ---
+            
+            ## 👥 Participants
+            
+            Tag relevant stakeholders for review: @maintainer1 @maintainer2
+            `;
+            
+            try {
+              console.log(`Creating discussion in category: ${category.categoryName}`);
+              
+              const result = await github.graphql(`
+                mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
+                  createDiscussion(input: {
+                    repositoryId: $repositoryId,
+                    categoryId: $categoryId,
+                    title: $title,
+                    body: $body
+                  }) {
+                    discussion {
+                      id
+                      number
+                      url
+                    }
+                  }
+                }
+              `, {
+                repositoryId: context.payload.repository.node_id,
+                categoryId: category.categoryId,
+                title: `[ADR] ${analysis.issueTitle}`,
+                body: discussionBody
+              });
+              
+              const discussion = result.createDiscussion.discussion;
+              
+              // Commenter sur l'issue
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: analysis.issueNumber,
+                body: `🏛️ **ADR Discussion Created**
+            
+            This issue has been identified as requiring an Architecture Decision Record.
+            
+            👉 **Join the discussion**: ${discussion.url}
+            
+            Please participate in the discussion to:
+            - Fill in the ADR sections (Context, Decision, Consequences, etc.)
+            - Review and comment on the proposed architecture
+            - Reach consensus with the team
+            
+            Once ready, a maintainer can approve with \`/adr approve\` and close the discussion to generate the final ADR document.
+            
+            **Discussion #${discussion.number}** | **Category**: ${category.categoryName}`
+              });
+              
+              // Ajouter les labels
+              await github.rest.issues.addLabels({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: analysis.issueNumber,
+                labels: ['adr', 'needs-review']
+              });
+              
+              console.log(`✅ Discussion created: #${discussion.number}`);
+              
+            } catch (error) {
+              console.error('Error creating discussion:', error);
+              
+              // Si erreur, commenter sur l'issue pour expliquer
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: analysis.issueNumber,
+                body: `⚠️ **ADR Discussion Creation Failed**
+            
+            Could not automatically create a discussion for this ADR.
+            
+            **Possible reasons:**
+            - Discussions may not be enabled in this repository
+            - No discussion categories exist
+            
+            **To fix:**
+            1. Go to Settings → Features → Enable Discussions
+            2. Create a discussion category (e.g., "Architecture Decisions")
+            3. Re-run the workflow or manually create a discussion
+            
+            **Error**: ${error.message}`
+              });
+              
+              throw error;
+            }
+
       - name: Fetch discussion comments
         uses: actions/github-script@v7
         with:
