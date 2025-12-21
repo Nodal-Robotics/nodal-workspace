@@ -446,27 +446,42 @@ jobs:
             }
             
             if (parsed.command === 'approve') {
-              // Marquer comme approuvé
-              await github.graphql(`
-                mutation($discussionId: ID!, $body: String!) {
-                  addDiscussionComment(input: {
-                    discussionId: $discussionId,
-                    body: $body
-                  }) {
-                    comment { id }
+              if (${{ steps.generate.outcome }} === 'success')
+                {
+                  // Marquer comme approuvé
+                  await github.graphql(`
+                    mutation($discussionId: ID!, $body: String!) {
+                      addDiscussionComment(input: {
+                        discussionId: $discussionId,
+                        body: $body
+                      }) {
+                        comment { id }
+                      }
+                    }
+                  `, {
+                    discussionId: parsed.discussionId,
+                    body: `✅ **ADR Approved by @${parsed.author}**
+                
+                This architectural decision has been approved.
+                
+                **Next step**: Close this discussion to automatically generate the ADR document.
+                
+                The document will be committed to \`docs/governance/adr/\` and linked back to the original issue.`
+                  } else {
+                    if (!fs.existsSync("bot_output.json")) return;
+
+                    const messages = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
+
+                    for (const m of messages) {
+                      await github.rest.discussions.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        discussion_number: context.payload.discussion.number,
+                        body: `❌ **ADR validation failed**\n\n${m.message}`
+                      });
                   }
-                }
-              `, {
-                discussionId: parsed.discussionId,
-                body: `✅ **ADR Approved by @${parsed.author}**
-            
-            This architectural decision has been approved.
-            
-            **Next step**: Close this discussion to automatically generate the ADR document.
-            
-            The document will be committed to \`docs/governance/adr/\` and linked back to the original issue.`
-              });
-              
+                });
+
             } else if (parsed.command === 'reject') {
               // Rejeter l'ADR
               await github.graphql(`
@@ -632,7 +647,7 @@ jobs:
           fi
       
       - name: Update issue and discussion
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.commit.outputs.success == 'true' && steps.generate.outcome == 'success'
+        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.commit.outputs.success == 'true'
         uses: actions/github-script@v7
         with:
           script: |
