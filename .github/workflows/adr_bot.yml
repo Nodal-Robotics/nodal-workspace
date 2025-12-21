@@ -339,124 +339,67 @@ jobs:
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-
-            const discussionNumber = context.payload.discussion.number;
-
-            const query = `
-              query($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  discussion(number: $number) {
-                    comments(first: 100) {
-                      nodes {
-                        body
-                        createdAt
-                        author {
-                          login
-                        }
-                      }
-                    }
-                  }
-                }
+            const comments = await github.paginate(
+              github.rest.discussions.listComments,
+              {
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                discussion_number: context.payload.discussion.number
               }
-            `;
+            );
 
-            const result = await github.graphql(query, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              number: discussionNumber
-            });
-
-            const comments = result.repository.discussion.comments.nodes;
             const enriched = [];
-
             for (const c of comments) {
-              let role = "BOT";
-
-              // Ignore les bots système
-              if (c.author && c.author.login && c.author.login !== "github-actions") {
-                try {
-                  const perm = await github.rest.repos.getCollaboratorPermissionLevel({
-                    owner: context.repo.owner,
-                    repo: context.repo.repo,
-                    username: c.author.login
-                  });
-                  role = perm.data.permission.toUpperCase();
-                } catch (err) {
-                  console.log(`⚠️ Permission lookup failed for ${c.author.login}, defaulting to READ`);
-                  role = "READ";
-                }
-              }
+              const perm = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: c.user.login
+              });
 
               enriched.push({
                 body: c.body,
-                author: c.author?.login ?? "unknown",
-                author_role: role,
-                created_at: c.createdAt
+                author: c.user.login,
+                author_role: perm.data.permission.toUpperCase(),
+                created_at: c.created_at
               });
             }
 
-            const payload = {
-              meta: {
-                discussion_number: discussionNumber,
-                discussion_url: context.payload.discussion.html_url,
-                title: context.payload.discussion.title
-              },
-              comments: enriched
-            };
-
-            fs.writeFileSync("input.json", JSON.stringify(payload, null, 2));
-            console.log(`✅ Saved ${enriched.length} comments to input.json`);
+            require("fs").writeFileSync(
+              "input.json",
+              JSON.stringify({ meta: {}, comments: enriched }, null, 2)
+            );
 
       - name: Run ADR bot
         run: |
-          python scripts/adr_bot/main.py input.json
+          python adr_bot/main.py input.json
 
-      - name: Post ADR bot feedback
+      - name: Post bot feedback
         if: always()
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const fs = require("fs");
-            if (!fs.existsSync("bot_output.json")) {
-              console.log("No bot output to post");
-              return;
-            }
+            if (!fs.existsSync("bot_output.json")) return;
 
-            const output = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
-
+            const o = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
             let body = "";
-            if (output.status === "error") {
-              body = `❌ **ADR command failed**\n\n${output.message}`;
-              if (output.details?.missing) {
-                body += `\n\n**Missing required sections:**\n- ${output.details.missing.join("\n- ")}`;
+
+            if (o.status === "error") {
+              body = `❌ **ADR command failed**\n\n${o.message}`;
+              if (o.details?.missing) {
+                body += `\n\n**Missing sections:**\n- ${o.details.missing.join("\n- ")}`;
               }
-            } else if (output.status === "show") {
-              body = `📋 **ADR Content**\n\n${output.content}`;
-            } else if (output.status === "success") {
-              body = `✅ **ADR approved**\n\nGenerated file: \`${output.adr_file}\``;
+            } else {
+              body = `✅ **ADR approved**\n\nGenerated file: \`${o.adr_file}\``;
             }
 
-            const mutation = `
-              mutation($discussionId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  discussionId: $discussionId,
-                  body: $body
-                }) {
-                  comment {
-                    id
-                  }
-                }
-              }
-            `;
-
-            await github.graphql(mutation, {
-              discussionId: context.payload.discussion.node_id,
+            await github.rest.discussions.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              discussion_number: context.payload.discussion.number,
               body
             });
-
-            console.log("ADR bot feedback posted");
 
       - name: Commit ADR
         if: success()
