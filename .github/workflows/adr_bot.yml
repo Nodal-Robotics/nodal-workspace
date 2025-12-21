@@ -345,34 +345,53 @@ jobs:
               
               throw error;
             }
-
       - name: Fetch discussion comments
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const comments = await github.paginate(
-              github.rest.discussions.listComments,
-              {
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                discussion_number: context.payload.discussion.number
+            const discussionNumber = context.payload.discussion.number;
+
+            const query = `
+              query($owner: String!, $repo: String!, $number: Int!) {
+                repository(owner: $owner, name: $repo) {
+                  discussion(number: $number) {
+                    comments(first: 100) {
+                      nodes {
+                        body
+                        createdAt
+                        author {
+                          login
+                        }
+                      }
+                    }
+                  }
+                }
               }
-            );
+            `;
+
+            const result = await github.graphql(query, {
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              number: discussionNumber
+            });
+
+            const comments = result.repository.discussion.comments.nodes;
 
             const enriched = [];
+
             for (const c of comments) {
               const perm = await github.rest.repos.getCollaboratorPermissionLevel({
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                username: c.user.login
+                username: c.author.login
               });
 
               enriched.push({
                 body: c.body,
-                author: c.user.login,
+                author: c.author.login,
                 author_role: perm.data.permission.toUpperCase(),
-                created_at: c.created_at
+                created_at: c.createdAt
               });
             }
 
@@ -380,6 +399,8 @@ jobs:
               "input.json",
               JSON.stringify({ meta: {}, comments: enriched }, null, 2)
             );
+
+            console.log(`Fetched ${enriched.length} discussion comments`);
 
       - name: Run ADR bot
         run: |
