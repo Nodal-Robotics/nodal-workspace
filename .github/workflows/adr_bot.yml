@@ -13,7 +13,8 @@ permissions:
   discussions: write
 
 jobs:
-  adr:
+  # Job 1: Détecter les issues qui nécessitent un ADR et créer une discussion
+  detect_and_create_discussion:
     name: Detect ADR need and create discussion
     runs-on: ubuntu-latest
     if: github.event_name == 'issues' && (github.event.action == 'opened' || github.event.action == 'labeled')
@@ -22,14 +23,9 @@ jobs:
       issues: write
       discussions: write
       contents: read
-    
 
     steps:
       - uses: actions/checkout@v4
-
-      - uses: actions/setup-python@v4
-        with:
-          python-version: '3.11'
 
       - name: Check if already has discussion
         id: check_existing
@@ -158,7 +154,7 @@ jobs:
         if: fromJSON(steps.check_existing.outputs.result) && fromJSON(steps.analyze.outputs.result).isADR
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.ADR_BOT_TOKEN }}
+          github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
             const analysis = ${{ steps.analyze.outputs.result }};
             const category = ${{ steps.get_category.outputs.result }};
@@ -177,268 +173,48 @@ jobs:
             
             ---
             
-            ## 📝 ADR Sections to Complete
+            ## 📝 How to fill this ADR
             
-            Please fill in the sections below through discussion comments. Use the section headers to organize your thoughts.
+            Use the following commands to fill in the ADR sections:
             
-            ### \`## Context\`
+            - \`/adr fill <section>\` - Fill or replace a section with content
+            - \`/adr append <section>\` - Add content to an existing section
+            - \`/adr show\` - Display the current state of the ADR
+            - \`/adr show <section>\` - Display a specific section
+            - \`/adr approve\` - Approve and generate the ADR document (maintainers only)
+            - \`/adr reject\` - Reject this ADR (maintainers only)
             
-            _What is the architectural problem or decision we need to make?_
+            ### Example:
             
-            - Current situation
-            - Constraints and requirements  
-            - Why this decision is needed
-            
-            ---
-            
-            ### \`## Decision\`
-            
-            _What is the proposed architectural solution?_
-            
-            - Describe the decision in detail
-            - Technical approach
-            - Key components involved
+            \`\`\`
+            /adr fill context
+            We need to choose a database solution for our new microservices architecture.
+            Currently using a monolithic PostgreSQL database which is becoming a bottleneck.
+            Requirements: high availability, horizontal scalability, multi-region support.
+            \`\`\`
             
             ---
             
-            ### \`## Alternatives\`
+            ## 📋 Required Sections
             
-            _What other options were considered?_
+            - **Context**: What is the problem or decision we need to make?
+            - **Decision**: What solution are we proposing?
+            - **Consequences**: What are the impacts (positive and negative)?
             
-            - Alternative 1: Description + why rejected
-            - Alternative 2: Description + why rejected
+            ## 📋 Optional Sections
             
-            ---
-            
-            ### \`## Consequences\`
-            
-            _What are the impacts of this decision?_
-            
-            **Positive:**
-            - Benefit 1
-            - Benefit 2
-            
-            **Negative:**
-            - Trade-off 1
-            - Trade-off 2
-            
-            ---
-            
-            ### \`## Safety Impact\` (if applicable)
-            
-            - SIL Level: [None / SIL 1 / SIL 2 / SIL 3 / SIL 4]
-            - Related Requirements: SR-XXX, SR-YYY
-            - Safety justification
-            
-            ---
-            
-            ### \`## Implementation\`
-            
-            - Modules affected
-            - Migration strategy
-            - Timeline
-            
-            ---
-            
-            ## ✅ Validation Commands
-            
-            Once consensus is reached, use these commands to proceed:
-            
-            - \`/adr approve\` - Mark as approved and generate ADR document
-            - \`/adr reject\` - Reject this ADR (close without generating document)
-            - \`/adr status\` - Check current approval status
-            - \`/adr fill\`   - fill the section
-
-            **Note**: The ADR will only be generated when:
-            1. Required sections are filled (Context, Decision, Consequences)
-            2. Command \`/adr approve\` is issued by a maintainer
-            3. Discussion is closed
+            - **Alternatives**: What other options were considered?
+            - **SafetyImpact**: Safety-related considerations (if applicable)
+            - **Implementation**: How will this be implemented?
             
             ---
             
             ## 👥 Participants
             
-            Tag relevant stakeholders for review: @maintainer1 @maintainer2
+            Tag relevant stakeholders for review.
             `;
             
             try {
               console.log(`Creating discussion in category: ${category.categoryName}`);
               
-              const result = await github.graphql(`
-                mutation($repositoryId: ID!, $categoryId: ID!, $title: String!, $body: String!) {
-                  createDiscussion(input: {
-                    repositoryId: $repositoryId,
-                    categoryId: $categoryId,
-                    title: $title,
-                    body: $body
-                  }) {
-                    discussion {
-                      id
-                      number
-                      url
-                    }
-                  }
-                }
-              `, {
-                repositoryId: context.payload.repository.node_id,
-                categoryId: category.categoryId,
-                title: `[ADR] ${analysis.issueTitle}`,
-                body: discussionBody
-              });
-              
-              const discussion = result.createDiscussion.discussion;
-              
-              // Commenter sur l'issue
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: analysis.issueNumber,
-                body: `🏛️ **ADR Discussion Created**
-            
-            This issue has been identified as requiring an Architecture Decision Record.
-            
-            👉 **Join the discussion**: ${discussion.url}
-            
-            Please participate in the discussion to:
-            - Fill in the ADR sections (Context, Decision, Consequences, etc.)
-            - Review and comment on the proposed architecture
-            - Reach consensus with the team
-            
-            Once ready, a maintainer can approve with \`/adr approve\` and close the discussion to generate the final ADR document.
-            
-            **Discussion #${discussion.number}** | **Category**: ${category.categoryName}`
-              });
-              
-              // Ajouter les labels
-              await github.rest.issues.addLabels({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: analysis.issueNumber,
-                labels: ['adr', 'needs-review']
-              });
-              
-              console.log(`✅ Discussion created: #${discussion.number}`);
-              
-            } catch (error) {
-              console.error('Error creating discussion:', error);
-              
-              // Si erreur, commenter sur l'issue pour expliquer
-              await github.rest.issues.createComment({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                issue_number: analysis.issueNumber,
-                body: `⚠️ **ADR Discussion Creation Failed**
-            
-            Could not automatically create a discussion for this ADR.
-            
-            **Possible reasons:**
-            - Discussions may not be enabled in this repository
-            - No discussion categories exist
-            
-            **To fix:**
-            1. Go to Settings → Features → Enable Discussions
-            2. Create a discussion category (e.g., "Architecture Decisions")
-            3. Re-run the workflow or manually create a discussion
-            
-            **Error**: ${error.message}`
-              });
-              
-              throw error;
-            }
-      - name: Fetch discussion comments
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const discussionNumber = context.payload.discussion.number;
-
-            const query = `
-              query($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  discussion(number: $number) {
-                    comments(first: 100) {
-                      nodes {
-                        body
-                        createdAt
-                        author {
-                          login
-                        }
-                      }
-                    }
-                  }
-                }
-              }
-            `;
-
-            const result = await github.graphql(query, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              number: discussionNumber
-            });
-
-            const comments = result.repository.discussion.comments.nodes;
-
-            const enriched = [];
-
-            for (const c of comments) {
-              const perm = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                username: c.author.login
-              });
-
-              enriched.push({
-                body: c.body,
-                author: c.author.login,
-                author_role: perm.data.permission.toUpperCase(),
-                created_at: c.createdAt
-              });
-            }
-
-            require("fs").writeFileSync(
-              "input.json",
-              JSON.stringify({ meta: {}, comments: enriched }, null, 2)
-            );
-
-            console.log(`Fetched ${enriched.length} discussion comments`);
-
-      - name: Run ADR bot
-        run: |
-          python adr_bot/main.py input.json
-
-      - name: Post bot feedback
-        if: always()
-        uses: actions/github-script@v7
-        with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
-          script: |
-            const fs = require("fs");
-            if (!fs.existsSync("bot_output.json")) return;
-
-            const o = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
-            let body = "";
-
-            if (o.status === "error") {
-              body = `❌ **ADR command failed**\n\n${o.message}`;
-              if (o.details?.missing) {
-                body += `\n\n**Missing sections:**\n- ${o.details.missing.join("\n- ")}`;
-              }
-            } else {
-              body = `✅ **ADR approved**\n\nGenerated file: \`${o.adr_file}\``;
-            }
-
-            await github.rest.discussions.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              discussion_number: context.payload.discussion.number,
-              body
-            });
-
-      - name: Commit ADR
-        if: success()
-        run: |
-          git config user.name "adr-bot"
-          git config user.email "adr-bot@users.noreply.github.com"
-          git add docs/adr/*.md adr_state.json || true
-          git commit -m "docs(adr): publish ADR" || true
-          git push
+              const result = await github
