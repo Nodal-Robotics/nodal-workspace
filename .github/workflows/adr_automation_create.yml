@@ -632,7 +632,7 @@ jobs:
           fi
       
       - name: Update issue and discussion
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.commit.outputs.success == 'true'
+        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.commit.outputs.success == 'true' && steps.generate.outcome == 'success'
         uses: actions/github-script@v7
         with:
           script: |
