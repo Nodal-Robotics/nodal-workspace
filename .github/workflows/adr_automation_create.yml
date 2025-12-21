@@ -399,7 +399,7 @@ jobs:
         with:
           script: |
             const parsed = ${{ steps.parse.outputs.result }};
-            
+            const generate_status = ${{ steps.generate.outcome }}
             if (parsed.command === 'status') {
               // Afficher le statut actuel
               await github.graphql(`
@@ -446,7 +446,7 @@ jobs:
             }
             
             if (parsed.command === 'approve') {
-              if ${{ steps.generate.outcome }} === 'success'
+              if (generate_status === 'success')
                 {
                   // Marquer comme approuvé
                   await github.graphql(`
