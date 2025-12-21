@@ -399,7 +399,7 @@ jobs:
         with:
           script: |
             const parsed = ${{ steps.parse.outputs.result }};
-            
+            const generate_status = ${{ steps.generate.outcome }}
             if (parsed.command === 'status') {
               // Afficher le statut actuel
               await github.graphql(`
@@ -446,8 +446,8 @@ jobs:
             }
             
             if (parsed.command === 'approve') {
-              if ${{ steps.generate.outcome }} === 'success'
-                {
+              # if (generate_status === 'success')
+              #   {
                   // Marquer comme approuvé
                   await github.graphql(`
                     mutation($discussionId: ID!, $body: String!) {
@@ -467,19 +467,19 @@ jobs:
                 **Next step**: Close this discussion to automatically generate the ADR document.
                 
                 The document will be committed to \`docs/governance/adr/\` and linked back to the original issue.`
-                  } else {
-                    if (!fs.existsSync("bot_output.json")) return;
+                  } # else {
+                  #   if (!fs.existsSync("bot_output.json")) return;
 
-                    const messages = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
+                  #   const messages = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
 
-                    for (const m of messages) {
-                      await github.rest.discussions.createComment({
-                        owner: context.repo.owner,
-                        repo: context.repo.repo,
-                        discussion_number: context.payload.discussion.number,
-                        body: `❌ **ADR validation failed**\n\n${m.message}`
-                      });
-                  }
+                  #   for (const m of messages) {
+                  #     await github.rest.discussions.createComment({
+                  #       owner: context.repo.owner,
+                  #       repo: context.repo.repo,
+                  #       discussion_number: context.payload.discussion.number,
+                  #       body: `❌ **ADR validation failed**\n\n${m.message}`
+                  #     });
+                  # }
                 });
 
             } else if (parsed.command === 'reject') {
