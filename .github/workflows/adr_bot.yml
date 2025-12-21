@@ -78,7 +78,7 @@ jobs:
 
       - name: Run ADR bot
         run: |
-          python adr_bot/main.py input.json
+          python scripts/adr_bot/main.py input.json
 
       - name: Post bot feedback
         if: always()
