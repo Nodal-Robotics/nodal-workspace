@@ -1,8 +1,12 @@
 name: ADR Bot
 
 on:
+  issues:
+    types: [opened, labeled, edited]
   discussion_comment:
     types: [created]
+  discussion:
+    types: [closed]
 
 permissions:
   contents: write
@@ -10,7 +14,15 @@ permissions:
 
 jobs:
   adr:
+    name: Detect ADR need and create discussion
     runs-on: ubuntu-latest
+    if: github.event_name == 'issues' && (github.event.action == 'opened' || github.event.action == 'labeled')
+    
+    permissions:
+      issues: write
+      discussions: write
+      contents: read
+    
 
     steps:
       - uses: actions/checkout@v4
