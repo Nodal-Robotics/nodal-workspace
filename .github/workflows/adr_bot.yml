@@ -54,21 +54,28 @@ jobs:
 
             const enriched = [];
 
-            for (const c of comments) {
-              const perm = await github.rest.repos.getCollaboratorPermissionLevel({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                username: c.author.login
-              });
+            let role = "BOT";
 
-              enriched.push({
-                body: c.body,
-                author: c.author.login,
-                author_role: perm.data.permission.toUpperCase(),
-                created_at: c.createdAt
-              });
+            if (c.author.login !== "github-actions") {
+              try {
+                const perm = await github.rest.repos.getCollaboratorPermissionLevel({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  username: c.author.login
+                });
+                role = perm.data.permission.toUpperCase();
+              } catch (e) {
+                console.log(`⚠️ Unable to get role for ${c.author.login}, defaulting to READ`);
+                role = "READ";
+              }
             }
 
+            enriched.push({
+              body: c.body,
+              author: c.author.login,
+              author_role: role,
+              created_at: c.createdAt
+            });
             require("fs").writeFileSync(
               "input.json",
               JSON.stringify({ meta: {}, comments: enriched }, null, 2)
@@ -79,8 +86,7 @@ jobs:
       - name: Run ADR bot
         run: |
           python scripts/adr_bot/main.py input.json
-
-      - name: Post bot feedback
+      - name: Post ADR bot feedback
         if: always()
         uses: actions/github-script@v7
         with:
