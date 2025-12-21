@@ -549,151 +549,79 @@ jobs:
       #       };
 
       - name: Checkout repository
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      
+
       - name: Set up Python
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
-      - name: Install dependencies
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
-        run: |
-          pip install PyGithub pyyaml requests
-      
-      
-      - name: Run ADR bot
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
-        id: generate
-        run: |
-          touch input.json &&
-          python scripts/adr_bot/main.py input.json
 
-      - name: Post ADR bot feedback
-        if: always()
+      # 3. Récupérer les commentaires de la discussion
+      - name: Fetch discussion comments
         uses: actions/github-script@v7
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
-            const fs = require("fs");
-            if (!fs.existsSync("bot_output.json")) return;
+            const discussion_number = context.payload.discussion.number;
 
-            const messages = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
-
-            for (const m of messages) {
-              await github.rest.discussions.createComment({
+            const comments = await github.paginate(
+              github.rest.discussions.listComments,
+              {
                 owner: context.repo.owner,
                 repo: context.repo.repo,
-                discussion_number: context.payload.discussion.number,
-                body: `❌ **ADR validation failed**\n\n${m.message}`
+                discussion_number
+              }
+            );
+
+            const enriched = [];
+            for (const c of comments) {
+              // Récupère le rôle GitHub de l'utilisateur
+              const perm = await github.rest.repos.getCollaboratorPermissionLevel({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                username: c.user.login
+              });
+
+              enriched.push({
+                id: c.id,
+                body: c.body,
+                author: c.user.login,
+                author_role: perm.data.permission.toUpperCase(), // ADMIN / MAINTAIN / WRITE / READ
+                created_at: c.created_at
               });
             }
 
-      # - name: Generate ADR document
-      #   if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
-      #   id: generate
-      #   run: |
-      #     python scripts/adr/generate_adr.py \
-      #       --discussion-number ${{ github.event.discussion.number }} \
-      #       --github-token ${{ secrets.GITHUB_TOKEN }} \
-      #       --repo ${{ github.repository }}
-      #   continue-on-error: true
-      
-      - name: Configure Git
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.generate.outcome == 'success'
-        run: |
-          git config --local user.email "github-actions[bot]@users.noreply.github.com"
-          git config --local user.name "github-actions[bot]"
-      
-      - name: Commit ADR document
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.generate.outcome == 'success'
-        id: commit
-        run: |
-          git add docs/governance/adr/
-          
-          if ! git diff --cached --quiet; then
-            ADR_NUMBER=$(cat /tmp/adr_number.txt)
-            ISSUE_NUMBER=$(cat /tmp/issue_number.txt)
-            
-            git commit -m "docs: add ADR-${ADR_NUMBER} from discussion #${{ github.event.discussion.number }}
+            const payload = {
+              meta: {
+                issue_number: discussion_number,
+                discussion_url: context.payload.discussion.html_url,
+                title: context.payload.discussion.title
+              },
+              comments: enriched
+            };
 
-            Related issue: #${ISSUE_NUMBER}
-            
-            [skip ci]"
-            
-            git push
-            
-            echo "success=true" >> $GITHUB_OUTPUT
-          else
-            echo "success=false" >> $GITHUB_OUTPUT
-          fi
-      
-      - name: Update issue and discussion
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.commit.outputs.success == 'true'
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const fs = require('fs');
-            const issueNumber = parseInt(fs.readFileSync('/tmp/issue_number.txt', 'utf8'));
-            const adrNumber = fs.readFileSync('/tmp/adr_number.txt', 'utf8').trim();
-            const adrFile = fs.readFileSync('/tmp/adr_file.txt', 'utf8').trim();
-            
-            // Commenter sur l'issue
-            await github.rest.issues.createComment({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              body: `✅ **ADR Document Generated**
-            
-            The Architecture Decision Record has been created and committed.
-            
-            📄 **ADR-${adrNumber}**: [\`${adrFile}\`](../blob/main/${adrFile})
-            
-            **Discussion**: #${{ github.event.discussion.number }} (approved and closed)
-            
-            The ADR is now part of the architectural documentation.`
-            });
-            
-            // Mettre à jour les labels
-            await github.rest.issues.removeLabel({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              name: 'needs-review'
-            }).catch(() => {});
-            
-            await github.rest.issues.addLabels({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              issue_number: issueNumber,
-              labels: ['adr-approved']
-            });
-            
-            // Commenter sur la discussion
-            await github.graphql(`
-              mutation($discussionId: ID!, $body: String!) {
-                addDiscussionComment(input: {
-                  discussionId: $discussionId,
-                  body: $body
-                }) {
-                  comment { id }
-                }
-              }
-            `, {
-              discussionId: context.payload.discussion.node_id,
-              body: `🎉 **ADR-${adrNumber} Successfully Generated**
-            
-            The document has been committed to the repository.
-            
-            📄 **File**: [\`${adrFile}\`](../blob/main/${adrFile})
-            📝 **Issue**: #${issueNumber}
-            
-            Thank you all for your participation! 🙌`
-            });
+            require("fs").writeFileSync("input.json", JSON.stringify(payload, null, 2));
+            console.log("Saved discussion comments to input.json");
+
+      # 4. Installer dépendances Python si nécessaire
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+
+      # 5. Exécuter le script ADR bot
+      - name: Run ADR bot
+        run: |
+          python adr_bot/main.py input.json
+
+      # 6. Commit et push des fichiers ADR générés
+      - name: Commit ADR
+        if: success()
+        run: |
+          git config user.name "adr-bot"
+          git config user.email "adr-bot@users.noreply.github.com"
+          git add docs/adr/*.md adr_state.json || true
+          git commit -m "docs(adr): publish ADR" || true
+          git push
 
       - name: Handle rejection or no approval
         if: "!fromJSON(steps.check_approval.outputs.result).shouldGenerate"
