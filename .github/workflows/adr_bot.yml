@@ -154,7 +154,7 @@ jobs:
         if: fromJSON(steps.check_existing.outputs.result) && fromJSON(steps.analyze.outputs.result).isADR
         uses: actions/github-script@v7
         with:
-          github-token: ${{ secrets.GITHUB_TOKEN }}
+          github-token: ${{ secrets.ADR_BOT_TOKEN }}
           script: |
             const analysis = ${{ steps.analyze.outputs.result }};
             const category = ${{ steps.get_category.outputs.result }};
