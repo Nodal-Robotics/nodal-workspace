@@ -68,14 +68,13 @@ def main(input_file: str):
         elif action == "approve":
             # Vérifie que l'ADR n'est pas vide
             non_empty = [s for s, v in state["sections"].items() if v["content"].strip()]
-            print(f"empty value: {non_empty} test")
-            if not non_empty:
-                
+            if non_empty:
                 state["state"]["status"] = AdrStatus.APPROVED.value
                 state["state"]["approved_by"] = c["author"]
                 state["state"]["approved_at"] = c["created_at"]
 
                 print(f"value: {non_empty} test")
+            else:
                 raise RuntimeError("Cannot approve ADR: all sections are empty")
 
             # Vérifie que les sections obligatoires sont présentes
@@ -104,4 +103,10 @@ def main(input_file: str):
         print(f"ADR_FILE=docs/adr/{filename}")
 
 if __name__ == "__main__":
-    main(sys.argv[1])
+    try:
+        main(sys.argv[1])
+    except RuntimeError as e:
+        bot_messages.append({
+            "type": "error",
+            "message": str(e)
+        })

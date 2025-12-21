@@ -446,27 +446,42 @@ jobs:
             }
             
             if (parsed.command === 'approve') {
-              // Marquer comme approuvé
-              await github.graphql(`
-                mutation($discussionId: ID!, $body: String!) {
-                  addDiscussionComment(input: {
-                    discussionId: $discussionId,
-                    body: $body
-                  }) {
-                    comment { id }
+              if steps.generate.outcome === 'success'
+                {
+                  // Marquer comme approuvé
+                  await github.graphql(`
+                    mutation($discussionId: ID!, $body: String!) {
+                      addDiscussionComment(input: {
+                        discussionId: $discussionId,
+                        body: $body
+                      }) {
+                        comment { id }
+                      }
+                    }
+                  `, {
+                    discussionId: parsed.discussionId,
+                    body: `✅ **ADR Approved by @${parsed.author}**
+                
+                This architectural decision has been approved.
+                
+                **Next step**: Close this discussion to automatically generate the ADR document.
+                
+                The document will be committed to \`docs/governance/adr/\` and linked back to the original issue.`
+                  } else {
+                    if (!fs.existsSync("bot_output.json")) return;
+
+                    const messages = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
+
+                    for (const m of messages) {
+                      await github.rest.discussions.createComment({
+                        owner: context.repo.owner,
+                        repo: context.repo.repo,
+                        discussion_number: context.payload.discussion.number,
+                        body: `❌ **ADR validation failed**\n\n${m.message}`
+                      });
                   }
-                }
-              `, {
-                discussionId: parsed.discussionId,
-                body: `✅ **ADR Approved by @${parsed.author}**
-            
-            This architectural decision has been approved.
-            
-            **Next step**: Close this discussion to automatically generate the ADR document.
-            
-            The document will be committed to \`docs/governance/adr/\` and linked back to the original issue.`
-              });
-              
+                });
+
             } else if (parsed.command === 'reject') {
               // Rejeter l'ADR
               await github.graphql(`
@@ -499,54 +514,54 @@ jobs:
       issues: write
     
     steps:
-      - name: Check if approved
-        id: check_approval
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const discussion = context.payload.discussion;
+      # - name: Check if approved
+      #   id: check_approval
+      #   uses: actions/github-script@v7
+      #   with:
+      #     script: |
+      #       const discussion = context.payload.discussion;
             
-            // Récupérer tous les commentaires via GraphQL
-            const result = await github.graphql(`
-              query($owner: String!, $repo: String!, $number: Int!) {
-                repository(owner: $owner, name: $repo) {
-                  discussion(number: $number) {
-                    comments(first: 100) {
-                      nodes {
-                        body
-                        author { login }
-                      }
-                    }
-                  }
-                }
-              }
-            `, {
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              number: discussion.number
-            });
+      #       // Récupérer tous les commentaires via GraphQL
+      #       const result = await github.graphql(`
+      #         query($owner: String!, $repo: String!, $number: Int!) {
+      #           repository(owner: $owner, name: $repo) {
+      #             discussion(number: $number) {
+      #               comments(first: 100) {
+      #                 nodes {
+      #                   body
+      #                   author { login }
+      #                 }
+      #               }
+      #             }
+      #           }
+      #         }
+      #       `, {
+      #         owner: context.repo.owner,
+      #         repo: context.repo.repo,
+      #         number: discussion.number
+      #       });
             
-            const comments = result.repository.discussion.comments.nodes;
+      #       const comments = result.repository.discussion.comments.nodes;
             
-            // Chercher une approbation
-            const hasApproval = comments.some(c => 
-              c.body.includes('/adr approve') || 
-              c.body.includes('✅ **ADR Approved')
-            );
+      #       // Chercher une approbation
+      #       const hasApproval = comments.some(c => 
+      #         c.body.includes('/adr approve') || 
+      #         c.body.includes('✅ **ADR Approved')
+      #       );
             
-            // Chercher un rejet
-            const hasRejection = comments.some(c => 
-              c.body.includes('/adr reject') ||
-              c.body.includes('❌ **ADR Rejected')
-            );
+      #       // Chercher un rejet
+      #       const hasRejection = comments.some(c => 
+      #         c.body.includes('/adr reject') ||
+      #         c.body.includes('❌ **ADR Rejected')
+      #       );
             
-            console.log(`Discussion #${discussion.number}: approved=${hasApproval}, rejected=${hasRejection}`);
+      #       console.log(`Discussion #${discussion.number}: approved=${hasApproval}, rejected=${hasRejection}`);
             
-            return {
-              shouldGenerate: hasApproval && !hasRejection,
-              discussionNumber: discussion.number
-            };
-      
+      #       return {
+      #         shouldGenerate: hasApproval && !hasRejection,
+      #         discussionNumber: discussion.number
+      #       };
+
       - name: Checkout repository
         if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
         uses: actions/checkout@v4
@@ -571,6 +586,26 @@ jobs:
         run: |
           touch input.json &&
           python scripts/adr_bot/main.py input.json
+
+      - name: Post ADR bot feedback
+        if: always()
+        uses: actions/github-script@v7
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+          script: |
+            const fs = require("fs");
+            if (!fs.existsSync("bot_output.json")) return;
+
+            const messages = JSON.parse(fs.readFileSync("bot_output.json", "utf8"));
+
+            for (const m of messages) {
+              await github.rest.discussions.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                discussion_number: context.payload.discussion.number,
+                body: `❌ **ADR validation failed**\n\n${m.message}`
+              });
+            }
 
       # - name: Generate ADR document
       #   if: fromJSON(steps.check_approval.outputs.result).shouldGenerate
@@ -612,7 +647,7 @@ jobs:
           fi
       
       - name: Update issue and discussion
-        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.commit.outputs.success == 'true' && steps.generate.outcome == 'success'
+        if: fromJSON(steps.check_approval.outputs.result).shouldGenerate && steps.commit.outputs.success == 'true'
         uses: actions/github-script@v7
         with:
           script: |
