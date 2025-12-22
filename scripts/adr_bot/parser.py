@@ -71,21 +71,41 @@ def parse_comment(body: str):
             }
 
         # === fill / append ===
-        if action in {"fill", "append"}:
-            if not args:
-                bot_error(f"/adr {action} requires section: content")
-
-            sec_match = SECTION_RE.match(args)
-            if not sec_match:
-                bot_error(
-                    f"/adr {action} syntax error",
-                    expected="section: content"
+        if action == "fill":
+            if len(tokens) != 3:
+                raise AdrParseError(
+                    "Invalid /adr fill syntax. Expected: /adr fill <section>"
                 )
 
+            section = tokens[2]
+            content_lines = []
+
+            i += 1
+            while i < len(lines):
+                current_line = lines[i]
+
+                # Nouvelle commande → fin du contenu
+                if current_line.strip().startswith("/adr"):
+                    i -= 1
+                    break
+
+                content_lines.append(current_line)
+                i += 1
+
+            content = "\n".join(content_lines).strip()
+
+            if not content:
+                raise AdrParseError(
+                    f"/adr fill syntax error: empty content for section '{section}'"
+                )
+
+            # commands.append({
+            # })
+
             return {
-                "action": action,
-                "section": sec_match.group("section"),
-                "content": sec_match.group("content").strip(),
+                "type": "fill",
+                "section": section,
+                "content": content
             }
 
     return None
