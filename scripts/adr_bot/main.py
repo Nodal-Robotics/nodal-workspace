@@ -9,7 +9,7 @@ from commands import apply_approve, apply_supersede
 from render import format_section_content, inject_sections
 from errors import bot_error, bot_success
 from utils import is_maintainer
-from parser import parse_comment
+from parser import parse_adr_commands
 
 
 def main(input_file):
@@ -30,7 +30,7 @@ def main(input_file):
     last_ctx = {}
 
     for c in comments:
-        parsed = parse_comment(c["body"])
+        parsed = parse_adr_commands(c["body"])
         if not parsed:
             continue
 
