@@ -103,14 +103,17 @@ def main(input_file: str):
 
     try:
         state = load_state(STATE_FILE)
+        print(f"✅ Loaded existing state from {STATE_FILE}")
     except FileNotFoundError:
         state = create_empty_state(meta)
+        print(f"📝 Created new state file {STATE_FILE}")
 
     approve_requested = False
     show_requested = False
     show_section = None
     approver = None
     approve_time = None
+    changes_made = False
 
     for c in comments:
         parsed = parse_comment(c["body"])
@@ -129,6 +132,8 @@ def main(input_file: str):
             if not section or not content or not content.strip():
                 bot_error("/adr fill requires a section and non-empty content")
             state["sections"][section]["content"] = content.strip()
+            print(f"✏️ Filled section '{section}' with {len(content.strip())} characters")
+            changes_made = True
 
         elif action == "append":
             if not section or not content or not content.strip():
@@ -137,6 +142,8 @@ def main(input_file: str):
             state["sections"][section]["content"] = (
                 cur + "\n\n" + content.strip() if cur else content.strip()
             )
+            print(f"➕ Appended to section '{section}'")
+            changes_made = True
 
         elif action == "show":
             # La commande show doit être la dernière action traitée
@@ -158,6 +165,7 @@ def main(input_file: str):
         formatted_content = format_section_content(state, show_section)
         bot_show(formatted_content)
         save_state(state, STATE_FILE)
+        print(f"💾 State saved to {STATE_FILE}")
         return
 
     if approve_requested:
@@ -200,7 +208,14 @@ def main(input_file: str):
         bot_success("ADR approved successfully", path)
         return
 
+    # Sauvegarder l'état après toute modification
     save_state(state, STATE_FILE)
+    print(f"💾 State saved to {STATE_FILE}")
+    
+    # Si des changements ont été faits (fill/append), générer une confirmation silencieuse
+    if changes_made:
+        bot_success("Section updated. Use /adr show to preview.")
+        return
 
 
 if __name__ == "__main__":
