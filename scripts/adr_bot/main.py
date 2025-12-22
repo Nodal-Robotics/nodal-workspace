@@ -14,18 +14,12 @@ from parser import parse_adr_commands, AdrParseError
 
 
 def main(input_file: str) -> None:
-    # ─────────────────────────────────────────────
-    # Chargement du payload GitHub
-    # ─────────────────────────────────────────────
     with open(input_file) as f:
         payload = json.load(f)
 
     comments = payload["comments"]
     meta = payload["meta"]
 
-    # ─────────────────────────────────────────────
-    # Chargement ou création de l'état ADR
-    # ─────────────────────────────────────────────
     try:
         state = load_state(STATE_FILE)
     except FileNotFoundError:
@@ -36,9 +30,6 @@ def main(input_file: str) -> None:
     last_terminal = None
     last_ctx = {}
 
-    # ─────────────────────────────────────────────
-    # Traitement des commentaires
-    # ─────────────────────────────────────────────
     for c in comments:
         try:
             commands = parse_adr_commands(c["body"])
@@ -52,7 +43,6 @@ def main(input_file: str) -> None:
         for parsed in commands:
             cmd = parsed["type"]
 
-            # FSM : validation de la transition
             try:
                 next_status = apply_fsm(current_status, cmd)
             except ValueError as e:
@@ -62,29 +52,17 @@ def main(input_file: str) -> None:
             section = parsed.get("section")
             content = parsed.get("content")
 
-            # ─────────────────────────────────────────
-            # Commandes mutantes
-            # ─────────────────────────────────────────
             if cmd == "fill":
                 state["sections"][section]["content"] = content.strip()
-                bot_success(
-                    "ADR updated",
-                    message=f"Section '{section}' updated successfully."
-                )
+                bot_success(f"Section '{section}' updated successfully.")
 
             elif cmd == "append":
                 cur = state["sections"][section]["content"]
                 state["sections"][section]["content"] = (
                     cur + "\n\n" + content.strip() if cur else content.strip()
                 )
-                bot_success(
-                    "ADR updated",
-                    message=f"Section '{section}' appended successfully."
-                )
+                bot_success(f"Section '{section}' appended successfully.")
 
-            # ─────────────────────────────────────────
-            # Commandes terminales
-            # ─────────────────────────────────────────
             elif cmd == "approve":
                 if not is_maintainer(c["author_role"]):
                     bot_error("Permission denied")
@@ -115,9 +93,6 @@ def main(input_file: str) -> None:
             current_status = next_status
             state["state"]["status"] = current_status.value
 
-    # ─────────────────────────────────────────────
-    # Action finale
-    # ─────────────────────────────────────────────
     if last_terminal == "show":
         bot_success(
             "ADR content",
@@ -139,7 +114,6 @@ def main(input_file: str) -> None:
         bot_success("ADR superseded")
 
     else:
-        # Pas de commande terminale → on persiste simplement l'état
         save_state(state, STATE_FILE)
 
 
