@@ -19,6 +19,7 @@ def main(input_file):
         payload = parts[1] if len(parts) > 1 else None
 
         try:
+            print(f"action: {action}\npayload: {payload}")
             result = execute_command(action, payload)
             output.update(result)
         except Exception as e:
