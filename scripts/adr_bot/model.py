@@ -1,9 +1,12 @@
-from enum import Enum
+# scripts/adr_bot/model.py
+from enum import Enum, auto
 
+class AdrStatus(Enum):
+    DRAFT = auto()
+    PROPOSED = auto()
+    ACCEPTED = auto()
+    REJECTED = auto()
+    SUPERSEDED = auto()
 
-class AdrStatus(str, Enum):
-    DRAFT = "DRAFT"
-    PROPOSED = "PROPOSED"
-    ACCEPTED = "ACCEPTED"
-    REJECTED = "REJECTED"
-    SUPERSEDED = "SUPERSEDED"
+    def __str__(self):
+        return self.name

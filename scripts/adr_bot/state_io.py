@@ -1,32 +1,22 @@
+# scripts/adr_bot/state_io.py
 import json
 from model import AdrStatus
-from constants import REQUIRED_SECTIONS
 
+STATE_FILE = "adr_state.json"
 
-def create_empty_state(meta):
-    return {
-        "meta": meta,
-        "state": {
-            "status": AdrStatus.DRAFT.value,
-            "approved_by": None,
-            "approved_at": None,
-            "rejected_by": None,
-            "rejected_at": None,
-            "superseded_by": None,
-            "superseded_at": None,
-            "supersedes": None,
-        },
-        "sections": {
-            s: {"content": ""} for s in REQUIRED_SECTIONS
-        }
-    }
+def load_state():
+    try:
+        with open(STATE_FILE, "r") as f:
+            data = json.load(f)
+            data["status"] = AdrStatus[data["status"]]
+            return data
+    except FileNotFoundError:
+        # état par défaut
+        return {"status": AdrStatus.DRAFT, "content": {}}
 
-
-def load_state(path):
-    with open(path) as f:
-        return json.load(f)
-
-
-def save_state(state, path):
-    with open(path, "w") as f:
-        json.dump(state, f, indent=2)
+def save_state(state):
+    # Conversion Enum → str
+    data = state.copy()
+    data["status"] = str(state["status"])
+    with open(STATE_FILE, "w") as f:
+        json.dump(data, f, indent=2)
