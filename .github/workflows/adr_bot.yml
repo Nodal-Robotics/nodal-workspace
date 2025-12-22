@@ -317,9 +317,10 @@ jobs:
         with:
           python-version: '3.11'
 
-      - name: Download previous ADR state from artifacts
-        uses: actions/download-artifact@v4
+      - name: Download previous ADR state
+        id: download_state
         continue-on-error: true
+        uses: actions/download-artifact@v4
         with:
           name: adr-state-${{ github.event.discussion.number }}
           path: .
@@ -403,18 +404,24 @@ jobs:
         run: |
           python scripts/adr_bot/main.py input.json
           
-          # Lire le statut de sortie pour savoir si c'est une approbation
+          # Lire le statut de sortie pour savoir si c'est une approbation ou un rejet
           if [ -f bot_output.json ]; then
-            # Vérifier si le fichier contient "adr_file" (indique une approbation)
             if grep -q '"adr_file"' bot_output.json; then
               echo "approved=true" >> $GITHUB_OUTPUT
+              echo "rejected=false" >> $GITHUB_OUTPUT
               echo "✅ ADR approved - will commit and cleanup"
+            elif grep -q '"rejected": true' bot_output.json; then
+              echo "approved=false" >> $GITHUB_OUTPUT
+              echo "rejected=true" >> $GITHUB_OUTPUT
+              echo "❌ ADR rejected - will cleanup"
             else
               echo "approved=false" >> $GITHUB_OUTPUT
+              echo "rejected=false" >> $GITHUB_OUTPUT
               echo "📝 State updated - will save as artifact"
             fi
           else
             echo "approved=false" >> $GITHUB_OUTPUT
+            echo "rejected=false" >> $GITHUB_OUTPUT
           fi
 
       - name: Post ADR bot feedback
@@ -440,11 +447,7 @@ jobs:
             } else if (output.status === "show") {
               body = `📋 **ADR Content**\n\n${output.content}`;
             } else if (output.status === "success") {
-              if (output.adr_file) {
-                body = `✅ **ADR approved**\n\nGenerated file: \`${output.adr_file}\``;
-              } else {
-                body = `✅ ${output.message}`;
-              }
+              body = `✅ **ADR approved**\n\nGenerated file: \`${output.adr_file}\``;
             }
 
             const mutation = `
@@ -467,8 +470,8 @@ jobs:
 
             console.log("ADR bot feedback posted");
 
-      - name: Upload ADR state as artifact (if not approved)
-        if: steps.run_bot.outputs.approved != 'true' && always()
+      - name: Save ADR state as artifact
+        if: steps.run_bot.outputs.approved != 'true' && steps.run_bot.outputs.rejected != 'true'
         uses: actions/upload-artifact@v4
         with:
           name: adr-state-${{ github.event.discussion.number }}
@@ -476,48 +479,43 @@ jobs:
           retention-days: 90
           overwrite: true
 
-      - name: Delete ADR state artifact (if approved)
-        if: steps.run_bot.outputs.approved == 'true'
-        continue-on-error: true
-        uses: actions/github-script@v7
-        with:
-          script: |
-            const artifacts = await github.rest.actions.listArtifactsForRepo({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              name: `adr-state-${context.payload.discussion.number}`
-            });
-            
-            for (const artifact of artifacts.data.artifacts) {
-              await github.rest.actions.deleteArtifact({
-                owner: context.repo.owner,
-                repo: context.repo.repo,
-                artifact_id: artifact.id
-              });
-              console.log(`🗑️  Deleted artifact: ${artifact.name}`);
-            }
-
-      - name: Commit approved ADR document
+      - name: Commit ADR
         if: steps.run_bot.outputs.approved == 'true'
         run: |
           git config user.name "adr-bot"
           git config user.email "adr-bot@users.noreply.github.com"
+          git add docs/adr/*.md adr_state.json || true
+          git commit -m "docs(adr): publish ADR from discussion #${{ github.event.discussion.number }}" || true
+          git push
           
-          # Ajouter SEULEMENT les fichiers ADR dans docs/adr/, PAS le adr_state.json
-          git add docs/adr/*.md 2>/dev/null || true
-          
-          # Supprimer adr_state.json s'il existe
-          if [ -f adr_state.json ]; then
-            rm adr_state.json
-            echo "🗑️  Deleted temporary adr_state.json"
-          fi
-          
-          # Vérifier s'il y a des changements
-          if git diff --staged --quiet; then
-            echo "ℹ️  No ADR document to commit"
-          else
-            echo "💾 Committing approved ADR document..."
-            git commit -m "docs(adr): approve and publish ADR from discussion #${{ github.event.discussion.number }}"
-            git push
-            echo "✅ ADR document published successfully"
-          fi
+      - name: Cleanup artifact after approval
+        if: steps.run_bot.outputs.approved == 'true' || steps.run_bot.outputs.rejected == 'true'
+        continue-on-error: true
+        uses: actions/github-script@v7
+        with:
+          script: |
+            // Supprimer l'artifact après approbation/rejet car on n'en a plus besoin
+            const artifactName = `adr-state-${{ github.event.discussion.number }}`;
+            const action = '${{ steps.run_bot.outputs.approved }}' === 'true' ? 'approved' : 'rejected';
+            console.log(`Cleaning up artifact after ADR was ${action}: ${artifactName}`);
+            
+            try {
+              const artifacts = await github.rest.actions.listArtifactsForRepo({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+              });
+              
+              const artifact = artifacts.data.artifacts.find(a => a.name === artifactName);
+              if (artifact) {
+                await github.rest.actions.deleteArtifact({
+                  owner: context.repo.owner,
+                  repo: context.repo.repo,
+                  artifact_id: artifact.id,
+                });
+                console.log(`✅ Artifact ${artifactName} deleted`);
+              } else {
+                console.log(`ℹ️  No artifact found to delete`);
+              }
+            } catch (error) {
+              console.log(`⚠️ Could not delete artifact: ${error.message}`);
+            }
