@@ -9,6 +9,7 @@ from commands import apply_approve, apply_supersede
 from render import format_section_content, inject_sections
 from errors import bot_error, bot_success
 from utils import is_maintainer
+from adr_parser import parse_comment
 
 
 def main(input_file):
