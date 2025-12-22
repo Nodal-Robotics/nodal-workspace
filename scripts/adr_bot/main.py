@@ -15,7 +15,9 @@ def main(input_file):
     output = {}
     for cmd in commands:
         parts = cmd.split(maxsplit=1)
+        print(f"parts: {parts}")
         action = parts[0].replace("/adr", "").strip()
+        print(f"actions: {parts[0].replace("/adr", "")}\naction: {action}")
         payload = parts[1] if len(parts) > 1 else None
 
         try:
