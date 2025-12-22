@@ -15,8 +15,8 @@ def main(input_file):
     output = {}
     for cmd in commands:
         parts = cmd.split(maxsplit=1)
-        action = parts[0].replace("/adr", "adr").strip()
-        payload = parts[1] if len(parts) > 1 else None
+        action = parts[1]
+        payload = parts[2] if len(parts) > 3 else None
 
         try:
             print(f"action: {action}\npayload: {payload}")
