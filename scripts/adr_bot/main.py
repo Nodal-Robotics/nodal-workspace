@@ -79,6 +79,8 @@ def main(input_file: str) -> None:
                 bot_success(f"Section '{section}' appended successfully.")
 
             elif cmd == "approve":
+                if current_status != AdrStatus.PROPOSED:
+                    continue
                 if not is_maintainer(c["author_role"]):
                     bot_error("Permission denied")
                     return
