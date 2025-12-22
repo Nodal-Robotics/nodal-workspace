@@ -1,39 +1,19 @@
 import re
-from errors import bot_error
-
-
-ADR_COMMAND_RE = re.compile(
-    r"""^
-    /adr
-    \s+
-    (?P<action>fill|append|show|approve|reject|supersede)
-    (?:\s+(?P<args>.+))?
-    $
-    """,
-    re.IGNORECASE | re.VERBOSE
-)
-
-
-SECTION_RE = re.compile(r"^(?P<section>[a-zA-Z0-9_-]+)\s*:\s*(?P<content>.+)$", re.DOTALL)
-
-"""
-ADR command parser.
-
-Responsabilité unique :
-- Parser le contenu texte des commentaires GitHub
-- Extraire les commandes /adr
-- Supporter /adr fill <section> avec contenu multi-ligne
-
-Aucune logique métier ADR ici.
-Aucune FSM ici.
-"""
-
 from typing import List, Dict
 
 
 class AdrParseError(Exception):
     """Erreur de syntaxe ADR explicite et contrôlée."""
     pass
+
+
+SUPPORTED_ACTIONS = {
+    "fill",
+    "append",
+    "show",
+    "approve",
+    "supersede",
+}
 
 
 def parse_adr_commands(comment_body: str) -> List[Dict]:
@@ -43,11 +23,10 @@ def parse_adr_commands(comment_body: str) -> List[Dict]:
     Commandes supportées :
       - /adr fill <section>
         (contenu multi-ligne jusqu'à la prochaine commande ou EOF)
+      - /adr append <section>
       - /adr show
-      - /adr status
       - /adr approve
-      - /adr reject
-      - toute autre commande mono-ligne /adr <action>
+      - /adr supersede
 
     :param comment_body: Texte brut du commentaire GitHub
     :return: Liste de commandes structurées
@@ -63,17 +42,18 @@ def parse_adr_commands(comment_body: str) -> List[Dict]:
     while i < len(lines):
         line = lines[i].strip()
 
-        # On ne s'intéresse qu'aux lignes commençant par /adr
         if not line.startswith("/adr"):
             i += 1
             continue
 
         tokens = line.split()
-
         if len(tokens) < 2:
             raise AdrParseError("Invalid /adr command")
 
-        action = tokens[1]
+        action = tokens[1].lower()
+
+        if action not in SUPPORTED_ACTIONS:
+            raise AdrParseError(f"Unsupported /adr command: {action}")
 
         # ─────────────────────────────────────────────
         # /adr fill <section>
@@ -91,7 +71,6 @@ def parse_adr_commands(comment_body: str) -> List[Dict]:
             while i < len(lines):
                 current_line = lines[i]
 
-                # Nouvelle commande → fin du contenu
                 if current_line.strip().startswith("/adr"):
                     i -= 1
                     break

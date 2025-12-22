@@ -30,8 +30,10 @@ def main(input_file):
     last_ctx = {}
 
     for c in comments:
-        commands = parse_adr_commands(c["body"])
-        if not commands:
+        try:
+            commands = parse_adr_commands(c["body"])
+        except AdrParseError as e:
+            bot_error(str(e))
             continue
 
         for parsed in commands:  # itération sur chaque commande
