@@ -16,61 +16,68 @@ ADR_COMMAND_RE = re.compile(
 
 SECTION_RE = re.compile(r"^(?P<section>[a-zA-Z0-9_-]+)\s*:\s*(?P<content>.+)$", re.DOTALL)
 
+"""
+ADR command parser.
 
-def parse_comment(body: str):
+Responsabilité unique :
+- Parser le contenu texte des commentaires GitHub
+- Extraire les commandes /adr
+- Supporter /adr fill <section> avec contenu multi-ligne
+
+Aucune logique métier ADR ici.
+Aucune FSM ici.
+"""
+
+from typing import List, Dict
+
+
+class AdrParseError(Exception):
+    """Erreur de syntaxe ADR explicite et contrôlée."""
+    pass
+
+
+def parse_adr_commands(comment_body: str) -> List[Dict]:
     """
-    Parse a single GitHub comment body.
-    Returns a dict or None if no ADR command is found.
+    Parse les commandes /adr présentes dans un commentaire GitHub.
 
-    Output schema (depending on command):
-    {
-        action: str,
-        section: Optional[str],
-        content: Optional[str],
-        target: Optional[str]   # for supersede
-    }
+    Commandes supportées :
+      - /adr fill <section>
+        (contenu multi-ligne jusqu'à la prochaine commande ou EOF)
+      - /adr show
+      - /adr status
+      - /adr approve
+      - /adr reject
+      - toute autre commande mono-ligne /adr <action>
+
+    :param comment_body: Texte brut du commentaire GitHub
+    :return: Liste de commandes structurées
     """
 
-    lines = [l.strip() for l in body.splitlines() if l.strip()]
+    if not comment_body or not comment_body.strip():
+        return []
 
-    for line in lines:
-        match = ADR_COMMAND_RE.match(line)
-        if not match:
+    lines = comment_body.splitlines()
+    commands: List[Dict] = []
+
+    i = 0
+    while i < len(lines):
+        line = lines[i].strip()
+
+        # On ne s'intéresse qu'aux lignes commençant par /adr
+        if not line.startswith("/adr"):
+            i += 1
             continue
 
-        action = match.group("action").lower()
-        args = match.group("args")
+        tokens = line.split()
 
-        # === Commands without arguments ===
-        if action in {"approve", "reject"}:
-            if args:
-                bot_error(f"/adr {action} does not accept arguments")
-            return {
-                "action": action,
-                "section": None,
-                "content": None,
-            }
+        if len(tokens) < 2:
+            raise AdrParseError("Invalid /adr command")
 
-        # === /adr show [section] ===
-        if action == "show":
-            return {
-                "action": "show",
-                "section": args.strip() if args else None,
-                "content": None,
-            }
+        action = tokens[1]
 
-        # === /adr supersede ADR-XXX ===
-        if action == "supersede":
-            if not args:
-                bot_error("/adr supersede requires a target ADR id")
-            return {
-                "action": "supersede",
-                "section": None,
-                "content": None,
-                "target": args.strip(),
-            }
-
-        # === fill / append ===
+        # ─────────────────────────────────────────────
+        # /adr fill <section>
+        # ─────────────────────────────────────────────
         if action == "fill":
             if len(tokens) != 3:
                 raise AdrParseError(
@@ -99,13 +106,20 @@ def parse_comment(body: str):
                     f"/adr fill syntax error: empty content for section '{section}'"
                 )
 
-            # commands.append({
-            # })
-
-            return {
+            commands.append({
                 "type": "fill",
                 "section": section,
                 "content": content
-            }
+            })
 
-    return None
+        # ─────────────────────────────────────────────
+        # Commandes mono-ligne
+        # ─────────────────────────────────────────────
+        else:
+            commands.append({
+                "type": action
+            })
+
+        i += 1
+
+    return commands
