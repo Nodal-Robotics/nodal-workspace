@@ -29,66 +29,66 @@ def main(input_file):
     last_terminal = None
     last_ctx = {}
 
-for c in comments:
-    commands = parse_adr_commands(c["body"])
-    if not commands:
-        continue
+    for c in comments:
+        commands = parse_adr_commands(c["body"])
+        if not commands:
+            continue
 
-    for parsed in commands:  # itération sur chaque commande
-        cmd = parsed["type"]
-        section = parsed.get("section")
-        content = parsed.get("content")
+        for parsed in commands:  # itération sur chaque commande
+            cmd = parsed["type"]
+            section = parsed.get("section")
+            content = parsed.get("content")
 
-        next_status = apply_fsm(current_status, cmd)
+            next_status = apply_fsm(current_status, cmd)
 
-        if cmd == "fill":
-            state["sections"][section]["content"] = content.strip()
+            if cmd == "fill":
+                state["sections"][section]["content"] = content.strip()
 
-        elif cmd == "append":
-            cur = state["sections"][section]["content"]
-            state["sections"][section]["content"] = (
-                cur + "\n\n" + content.strip() if cur else content.strip()
+            elif cmd == "append":
+                cur = state["sections"][section]["content"]
+                state["sections"][section]["content"] = (
+                    cur + "\n\n" + content.strip() if cur else content.strip()
+                )
+
+            elif cmd == "approve":
+                if not is_maintainer(c["author_role"]):
+                    bot_error("Permission denied")
+                last_terminal = "approve"
+                last_ctx = {"author": c["author"], "time": c["created_at"]}
+
+            elif cmd == "supersede":
+                if not is_maintainer(c["author_role"]):
+                    bot_error("Permission denied")
+                last_terminal = "supersede"
+                last_ctx = {
+                    "author": c["author"],
+                    "time": c["created_at"],
+                    "supersedes": parsed.get("target")
+                }
+
+            elif cmd == "show":
+                last_terminal = "show"
+                last_ctx = {"section": section}
+            current_status = next_status
+
+        # Action finale
+        if last_terminal == "show":
+            bot_success(
+                "ADR content",
+                content=format_section_content(state, last_ctx["section"])
             )
 
-        elif cmd == "approve":
-            if not is_maintainer(c["author_role"]):
-                bot_error("Permission denied")
-            last_terminal = "approve"
-            last_ctx = {"author": c["author"], "time": c["created_at"]}
+        elif last_terminal == "approve":
+            apply_approve(state, **last_ctx)
+            save_state(state, STATE_FILE)
+            bot_success("ADR approved")
 
-        elif cmd == "supersede":
-            if not is_maintainer(c["author_role"]):
-                bot_error("Permission denied")
-            last_terminal = "supersede"
-            last_ctx = {
-                "author": c["author"],
-                "time": c["created_at"],
-                "supersedes": parsed.get("target")
-            }
+        elif last_terminal == "supersede":
+            apply_supersede(state, **last_ctx)
+            save_state(state, STATE_FILE)
+            bot_success("ADR superseded")
 
-        elif cmd == "show":
-            last_terminal = "show"
-            last_ctx = {"section": section}
-        current_status = next_status
-
-    # Action finale
-    if last_terminal == "show":
-        bot_success(
-            "ADR content",
-            content=format_section_content(state, last_ctx["section"])
-        )
-
-    elif last_terminal == "approve":
-        apply_approve(state, **last_ctx)
         save_state(state, STATE_FILE)
-        bot_success("ADR approved")
-
-    elif last_terminal == "supersede":
-        apply_supersede(state, **last_ctx)
-        save_state(state, STATE_FILE)
-        bot_success("ADR superseded")
-
-    save_state(state, STATE_FILE)
 
 if __name__ == "__main__":
     main(sys.argv[1])
