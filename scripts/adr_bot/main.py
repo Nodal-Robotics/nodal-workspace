@@ -1,133 +1,45 @@
-import json
+# scripts/adr_bot/main.py
 import sys
-import os
+from parser import execute_command
+from state_io import load_state, save_state
+import json
 
-from constants import STATE_FILE
-from model import AdrStatus
-from fsm import apply_fsm
-from state_io import load_state, save_state, create_empty_state
-from commands import apply_approve, apply_supersede
-from render import format_section_content
-from errors import bot_error, bot_success
-from utils import is_maintainer
-from parser import parse_adr_commands, AdrParseError
+def main(input_file):
+    # Lecture du JSON d'entrée
+    with open(input_file, "r") as f:
+        data = json.load(f)
 
+    # Extraction des commandes de la discussion
+    commands = [c["body"].strip() for c in data.get("comments", [])]
 
-READ_ONLY_COMMANDS = {"show", "status"}
+    output = {}
+    for cmd in commands:
+        parts = cmd.split(maxsplit=1)
+        action = parts[0].replace("/adr", "").strip()
+        payload = parts[1] if len(parts) > 1 else None
 
-
-def main(input_file: str) -> None:
-    with open(input_file) as f:
-        payload = json.load(f)
-
-    comments = payload["comments"]
-    meta = payload["meta"]
-
-    try:
-        state = load_state(STATE_FILE)
-    except FileNotFoundError:
-        state = create_empty_state(meta)
-
-    current_status = AdrStatus(state["state"]["status"])
-
-    last_terminal = None
-    last_ctx = {}
-
-    for c in comments:
         try:
-            commands = parse_adr_commands(c["body"])
-        except AdrParseError as e:
-            bot_error(str(e))
-            return
+            result = execute_command(action, payload)
+            output.update(result)
+        except Exception as e:
+            output = {"status": "error", "message": str(e)}
+            break
 
-        if not commands:
-            continue
+    # Si ADR accepté, générer le fichier final
+    state = load_state()
+    if state["status"] == state["status"].__class__.ACCEPTED:
+        adr_filename = f"adr_{state.get('content', {}).get('id', 'unknown')}.md"
+        with open(adr_filename, "w") as f:
+            f.write("# ADR Generated\n\n")
+            f.write(json.dumps(state["content"], indent=2))
+        output["adr_file"] = adr_filename
 
-        for parsed in commands:
-            cmd = parsed["type"]
+    # Sauvegarde de l'état
+    save_state(state)
 
-            # ─────────────────────────────────────────────
-            # Commandes READ-ONLY → bypass FSM
-            # ─────────────────────────────────────────────
-            if cmd in READ_ONLY_COMMANDS:
-                if cmd == "show":
-                    last_terminal = "show"
-                    last_ctx = {"section": parsed.get("section")}
-                continue
-
-            # ─────────────────────────────────────────────
-            # Commandes mutantes → FSM
-            # ─────────────────────────────────────────────
-            try:
-                next_status = apply_fsm(current_status, cmd)
-            except ValueError as e:
-                bot_error(str(e))
-                return
-
-            section = parsed.get("section")
-            content = parsed.get("content")
-
-            if cmd == "fill":
-                state["sections"][section]["content"] = content.strip()
-                bot_success(f"Section '{section}' updated successfully.")
-
-            elif cmd == "append":
-                cur = state["sections"][section]["content"]
-                state["sections"][section]["content"] = (
-                    cur + "\n\n" + content.strip() if cur else content.strip()
-                )
-                bot_success(f"Section '{section}' appended successfully.")
-
-            elif cmd == "approve":
-                if current_status != AdrStatus.PROPOSED:
-                    continue
-                if not is_maintainer(c["author_role"]):
-                    bot_error("Permission denied")
-                    return
-
-                last_terminal = "approve"
-                last_ctx = {
-                    "author": c["author"],
-                    "time": c["created_at"]
-                }
-
-            elif cmd == "supersede":
-                if not is_maintainer(c["author_role"]):
-                    bot_error("Permission denied")
-                    return
-
-                last_terminal = "supersede"
-                last_ctx = {
-                    "author": c["author"],
-                    "time": c["created_at"],
-                    "supersedes": parsed.get("target")
-                }
-
-            current_status = next_status
-            state["state"]["status"] = current_status.value
-
-    # ─────────────────────────────────────────────
-    # Actions terminales
-    # ─────────────────────────────────────────────
-    if last_terminal == "show":
-        bot_success(
-            "ADR content",
-            content=format_section_content(state, last_ctx.get("section"))
-        )
-
-    elif last_terminal == "approve":
-        apply_approve(state, **last_ctx)
-        save_state(state, STATE_FILE)
-        bot_success("ADR approved")
-
-    elif last_terminal == "supersede":
-        apply_supersede(state, **last_ctx)
-        save_state(state, STATE_FILE)
-        bot_success("ADR superseded")
-
-    else:
-        save_state(state, STATE_FILE)
-
+    # Sortie bot
+    with open("bot_output.json", "w") as f:
+        json.dump(output, f, indent=2)
 
 if __name__ == "__main__":
     main(sys.argv[1])

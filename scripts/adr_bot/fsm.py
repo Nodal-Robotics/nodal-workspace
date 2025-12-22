@@ -1,40 +1,31 @@
+# scripts/adr_bot/fsm.py
 from model import AdrStatus
 
-# FSM déclarative :
-# état courant -> commandes autorisées -> état suivant
-FSM_TRANSITIONS = {
+# Définition claire et complète de la FSM
+TRANSITIONS = {
     AdrStatus.DRAFT: {
         "fill": AdrStatus.DRAFT,
         "append": AdrStatus.DRAFT,
+        "show": AdrStatus.DRAFT,
+        "propose": AdrStatus.PROPOSED,
+    },
+    AdrStatus.PROPOSED: {
+        "show": AdrStatus.PROPOSED,
         "approve": AdrStatus.ACCEPTED,
         "reject": AdrStatus.REJECTED,
         "supersede": AdrStatus.SUPERSEDED,
     },
-
-    AdrStatus.ACCEPTED: {
-        "supersede": AdrStatus.SUPERSEDED,
-    },
-
-    AdrStatus.REJECTED: {
-        "supersede": AdrStatus.SUPERSEDED,
-    },
-
-    AdrStatus.SUPERSEDED: {
-        # état terminal
-    },
+    AdrStatus.ACCEPTED: {},
+    AdrStatus.REJECTED: {},
+    AdrStatus.SUPERSEDED: {},
 }
 
+def can_transition(current_status, command):
+    """Vérifie si la transition est possible"""
+    return command in TRANSITIONS.get(current_status, {})
 
-def apply_fsm(current_state: AdrStatus, command: str) -> AdrStatus:
-    """
-    Applique une transition FSM.
-
-    Les commandes READ-ONLY (show, status) ne doivent JAMAIS arriver ici.
-    """
-
-    if command not in FSM_TRANSITIONS.get(current_state, {}):
-        raise ValueError(
-            f"Command '{command}' not allowed in state {current_state.value}"
-        )
-
-    return FSM_TRANSITIONS[current_state][command]
+def next_status(current_status, command):
+    """Retourne le nouvel état si la transition est valide"""
+    if can_transition(current_status, command):
+        return TRANSITIONS[current_status][command]
+    raise ValueError(f"Transition impossible: {current_status} → {command}")

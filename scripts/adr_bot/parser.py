@@ -1,104 +1,23 @@
-import re
-from typing import List, Dict
+# scripts/adr_bot/parser.py
+from fsm import can_transition, next_status
+from state_io import load_state, save_state
 
+def execute_command(command, payload=None):
+    state = load_state()
+    current_status = state["status"]
 
-class AdrParseError(Exception):
-    """Erreur de syntaxe ADR explicite et contrôlée."""
-    pass
+    # Vérification de transition
+    if can_transition(current_status, command):
+        new_status = next_status(current_status, command)
+        state["status"] = new_status
 
-
-SUPPORTED_ACTIONS = {
-    "fill",
-    "append",
-    "show",
-    "approve",
-    "supersede",
-}
-
-
-def parse_adr_commands(comment_body: str) -> List[Dict]:
-    """
-    Parse les commandes /adr présentes dans un commentaire GitHub.
-
-    Commandes supportées :
-      - /adr fill <section>
-        (contenu multi-ligne jusqu'à la prochaine commande ou EOF)
-      - /adr append <section>
-      - /adr show
-      - /adr approve
-      - /adr supersede
-
-    :param comment_body: Texte brut du commentaire GitHub
-    :return: Liste de commandes structurées
-    """
-
-    if not comment_body or not comment_body.strip():
-        return []
-
-    lines = comment_body.splitlines()
-    commands: List[Dict] = []
-
-    i = 0
-    while i < len(lines):
-        line = lines[i].strip()
-
-        if not line.startswith("/adr"):
-            i += 1
-            continue
-
-        tokens = line.split()
-        if len(tokens) < 2:
-            raise AdrParseError("Invalid /adr command")
-
-        action = tokens[1].lower()
-
-        if action not in SUPPORTED_ACTIONS:
-            raise AdrParseError(f"Unsupported /adr command: {action}")
-
-        # ─────────────────────────────────────────────
-        # /adr fill <section>
-        # ─────────────────────────────────────────────
-        if action == "fill":
-            if len(tokens) != 3:
-                raise AdrParseError(
-                    "Invalid /adr fill syntax. Expected: /adr fill <section>"
-                )
-
-            section = tokens[2]
-            content_lines = []
-
-            i += 1
-            while i < len(lines):
-                current_line = lines[i]
-
-                if current_line.strip().startswith("/adr"):
-                    i -= 1
-                    break
-
-                content_lines.append(current_line)
-                i += 1
-
-            content = "\n".join(content_lines).strip()
-
-            if not content:
-                raise AdrParseError(
-                    f"/adr fill syntax error: empty content for section '{section}'"
-                )
-
-            commands.append({
-                "type": "fill",
-                "section": section,
-                "content": content
-            })
-
-        # ─────────────────────────────────────────────
-        # Commandes mono-ligne
-        # ─────────────────────────────────────────────
-        else:
-            commands.append({
-                "type": action
-            })
-
-        i += 1
-
-    return commands
+        # Gestion du contenu
+        if command in ("fill", "append") and payload:
+            state["content"].setdefault(command, []).append(payload)
+        save_state(state)
+        return {"status": "success", "new_status": str(new_status)}
+    else:
+        # Commandes valides mais sans changement d’état (show)
+        if command == "show":
+            return {"status": "show", "content": state["content"]}
+        return {"status": "error", "message": f"Commande '{command}' impossible depuis l'état {current_status}"}
