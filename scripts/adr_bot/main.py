@@ -29,12 +29,13 @@ def main(input_file):
     last_terminal = None
     last_ctx = {}
 
-    for c in comments:
-        parsed = parse_adr_commands(c["body"])
-        if not parsed:
-            continue
+for c in comments:
+    commands = parse_adr_commands(c["body"])
+    if not commands:
+        continue
 
-        cmd = parsed["action"]
+    for parsed in commands:  # itération sur chaque commande
+        cmd = parsed["type"]
         section = parsed.get("section")
         content = parsed.get("content")
 
@@ -62,13 +63,12 @@ def main(input_file):
             last_ctx = {
                 "author": c["author"],
                 "time": c["created_at"],
-                "supersedes": parsed["target"]
+                "supersedes": parsed.get("target")
             }
 
         elif cmd == "show":
             last_terminal = "show"
             last_ctx = {"section": section}
-
         current_status = next_status
 
     # Action finale
