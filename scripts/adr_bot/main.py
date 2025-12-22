@@ -13,6 +13,9 @@ from utils import is_maintainer
 from parser import parse_adr_commands, AdrParseError
 
 
+READ_ONLY_COMMANDS = {"show", "status"}
+
+
 def main(input_file: str) -> None:
     with open(input_file) as f:
         payload = json.load(f)
@@ -43,6 +46,18 @@ def main(input_file: str) -> None:
         for parsed in commands:
             cmd = parsed["type"]
 
+            # ─────────────────────────────────────────────
+            # Commandes READ-ONLY → bypass FSM
+            # ─────────────────────────────────────────────
+            if cmd in READ_ONLY_COMMANDS:
+                if cmd == "show":
+                    last_terminal = "show"
+                    last_ctx = {"section": parsed.get("section")}
+                continue
+
+            # ─────────────────────────────────────────────
+            # Commandes mutantes → FSM
+            # ─────────────────────────────────────────────
             try:
                 next_status = apply_fsm(current_status, cmd)
             except ValueError as e:
@@ -86,13 +101,12 @@ def main(input_file: str) -> None:
                     "supersedes": parsed.get("target")
                 }
 
-            elif cmd == "show":
-                last_terminal = "show"
-                last_ctx = {"section": section}
-
             current_status = next_status
             state["state"]["status"] = current_status.value
 
+    # ─────────────────────────────────────────────
+    # Actions terminales
+    # ─────────────────────────────────────────────
     if last_terminal == "show":
         bot_success(
             "ADR content",
@@ -100,10 +114,6 @@ def main(input_file: str) -> None:
         )
 
     elif last_terminal == "approve":
-        if not os.path.exists(STATE_FILE):
-            bot_error("No ADR state found. Run /adr fill before /adr approve.")
-            return
-
         apply_approve(state, **last_ctx)
         save_state(state, STATE_FILE)
         bot_success("ADR approved")
