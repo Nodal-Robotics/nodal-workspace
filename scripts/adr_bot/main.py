@@ -1,102 +1,17 @@
 import json
-import sys
-from datetime import datetime
-from adr_commands import REQUIRED_SECTIONS, is_maintainer, AdrStatus
-from adr_parser import parse_comment
-from adr_state import create_empty_state, load_state, save_state
-from adr_template import inject_sections
 
-STATE_FILE = "adr_state.json"
-BOT_OUTPUT = "bot_output.json"
-
-
-def bot_error(message: str, missing=None):
-    payload = {
-        "status": "error",
-        "message": message,
-        "details": {}
-    }
-    if missing:
-        payload["details"]["missing"] = missing
-    with open(BOT_OUTPUT, "w") as f:
-        json.dump(payload, f, indent=2)
-    sys.exit(0)
+from constants import STATE_FILE, ADR_TEMPLATE_FILE, ADR_DIR
+from model import AdrStatus
+from fsm import apply_fsm
+from state_io import load_state, save_state, create_empty_state
+from commands import apply_approve, apply_supersede
+from render import format_section_content, inject_sections
+from errors import bot_error, bot_success
+from utils import is_maintainer
 
 
-def bot_success(message: str, adr_file: str = None, rejected: bool = False):
-    payload = {
-        "status": "success",
-        "message": message,
-        "adr_file": adr_file,
-        "rejected": rejected
-    }
-    with open(BOT_OUTPUT, "w") as f:
-        json.dump(payload, f, indent=2)
-
-
-def bot_show(content: str):
-    """Génère une sortie spéciale pour afficher le contenu de l'ADR"""
-    payload = {
-        "status": "show",
-        "content": content
-    }
-    with open(BOT_OUTPUT, "w") as f:
-        json.dump(payload, f, indent=2)
-
-
-def format_section_content(state: dict, section: str = None) -> str:
-    """Formate le contenu d'une ou plusieurs sections pour affichage"""
-    output = []
-    
-    if section:
-        # Afficher une section spécifique
-        section_data = state["sections"].get(section)
-        if not section_data:
-            return f"⚠️ Section '{section}' non trouvée"
-        
-        content = section_data["content"].strip()
-        if not content:
-            output.append(f"## {section}\n\n*Section vide*")
-        else:
-            output.append(f"## {section}\n\n{content}")
-    else:
-        # Afficher toutes les sections
-        output.append("# État actuel de l'ADR\n")
-        output.append(f"**Statut:** {state['state']['status']}\n")
-        
-        has_content = False
-        for section_name, section_data in state["sections"].items():
-            content = section_data["content"].strip()
-            if content:
-                has_content = True
-                required = "✅ *requis*" if section_name in REQUIRED_SECTIONS else ""
-                output.append(f"## {section_name} {required}\n\n{content}\n")
-        
-        if not has_content:
-            output.append("\n*Aucune section n'a encore été remplie*")
-        else:
-            # Afficher les sections manquantes requises
-            missing_required = [
-                s for s in REQUIRED_SECTIONS 
-                if not state["sections"][s]["content"].strip()
-            ]
-            if missing_required:
-                output.append(f"\n⚠️ **Sections requises manquantes:** {', '.join(missing_required)}")
-    
-    return "\n".join(output)
-
-
-def adr_filename_from_state(state: dict) -> str:
-    approved_at = state["state"].get("approved_at")
-    if approved_at:
-        dt = datetime.fromisoformat(approved_at.replace("Z", "+00:00"))
-    else:
-        dt = datetime.utcnow()
-    return f"ADR-{dt.strftime('%Y%m%d-%H%M%S')}.md"
-
-
-def main(input_file: str):
-    with open(input_file, "r") as f:
+def main(input_file):
+    with open(input_file) as f:
         payload = json.load(f)
 
     comments = payload["comments"]
@@ -104,110 +19,74 @@ def main(input_file: str):
 
     try:
         state = load_state(STATE_FILE)
-        print(f"📂 Loaded existing state from {STATE_FILE}")
     except FileNotFoundError:
         state = create_empty_state(meta)
-        print(f"📝 Created new state file {STATE_FILE}")
 
-    approve_requested = False
-    show_requested = False
-    show_section = None
-    approver = None
-    approve_time = None
+    current_status = AdrStatus(state["state"]["status"])
+
+    last_terminal = None
+    last_ctx = {}
 
     for c in comments:
         parsed = parse_comment(c["body"])
         if not parsed:
             continue
 
-        action = parsed["action"]
-        section = parsed["section"]
-        content = parsed["content"]
+        cmd = parsed["action"]
+        section = parsed.get("section")
+        content = parsed.get("content")
 
-        if action in {"approve", "reject"}:
-            if not is_maintainer(c["author_role"]):
-                bot_error(f"User @{c['author']} is not allowed to execute /adr {action}")
+        next_status = apply_fsm(current_status, cmd)
 
-        if action == "fill":
-            if not section or not content or not content.strip():
-                bot_error("/adr fill requires a section and non-empty content")
+        if cmd == "fill":
             state["sections"][section]["content"] = content.strip()
 
-        elif action == "append":
-            if not section or not content or not content.strip():
-                bot_error("/adr append requires a section and non-empty content")
+        elif cmd == "append":
             cur = state["sections"][section]["content"]
             state["sections"][section]["content"] = (
                 cur + "\n\n" + content.strip() if cur else content.strip()
             )
 
-        elif action == "show":
-            # La commande show doit être la dernière action traitée
-            show_requested = True
-            show_section = section
+        elif cmd == "approve":
+            if not is_maintainer(c["author_role"]):
+                bot_error("Permission denied")
+            last_terminal = "approve"
+            last_ctx = {"author": c["author"], "time": c["created_at"]}
 
-        elif action == "approve":
-            approve_requested = True
-            approver = c["author"]
-            approve_time = c["created_at"]
+        elif cmd == "supersede":
+            if not is_maintainer(c["author_role"]):
+                bot_error("Permission denied")
+            last_terminal = "supersede"
+            last_ctx = {
+                "author": c["author"],
+                "time": c["created_at"],
+                "supersedes": parsed["target"]
+            }
 
-        elif action == "reject":
-            state["state"]["status"] = AdrStatus.REJECTED.value
-            state["state"]["rejected_by"] = c["author"]
-            state["state"]["rejected_at"] = c["created_at"]
-            save_state(state, STATE_FILE)
-            bot_success("ADR rejected", rejected=True)
-            return
+        elif cmd == "show":
+            last_terminal = "show"
+            last_ctx = {"section": section}
 
-    if show_requested:
-        formatted_content = format_section_content(state, show_section)
-        bot_show(formatted_content)
+        current_status = next_status
+
+    # Action finale
+    if last_terminal == "show":
+        bot_success(
+            "ADR content",
+            content=format_section_content(state, last_ctx["section"])
+        )
+
+    elif last_terminal == "approve":
+        apply_approve(state, **last_ctx)
         save_state(state, STATE_FILE)
-        return
+        bot_success("ADR approved")
 
-    if approve_requested:
-        non_empty = [
-            s for s, v in state["sections"].items()
-            if v["content"].strip()
-        ]
-        if not non_empty:
-            bot_error(
-                "Cannot approve ADR: ADR is empty",
-                missing=list(REQUIRED_SECTIONS)
-            )
-
-        missing = [
-            s for s in REQUIRED_SECTIONS
-            if not state["sections"][s]["content"].strip()
-        ]
-        if missing:
-            bot_error(
-                "Cannot approve ADR: missing required sections",
-                missing=missing
-            )
-
-        state["state"]["status"] = AdrStatus.APPROVED.value
-        state["state"]["approved_by"] = approver
-        state["state"]["approved_at"] = approve_time
-
+    elif last_terminal == "supersede":
+        apply_supersede(state, **last_ctx)
         save_state(state, STATE_FILE)
-
-        with open("adr_template.md", "r") as f:
-            template = f.read()
-
-        body = inject_sections(template, state)
-        filename = adr_filename_from_state(state)
-        path = f"docs/adr/{filename}"
-
-        with open(path, "w") as f:
-            f.write(body)
-
-        bot_success("ADR approved successfully", path)
-        return
+        bot_success("ADR superseded")
 
     save_state(state, STATE_FILE)
-    print(f"💾 State saved to {STATE_FILE}")
-
 
 if __name__ == "__main__":
     main(sys.argv[1])
