@@ -1,9 +1,14 @@
-# HTTP client pour GitHub REST API
+# HTTP client
 requests>=2.31.0
 
-# Typage optionnel (Python 3.11+ supporte nativement)
-typing-extensions>=4.8.0
+# GraphQL client officiel
 gql>=3.1.0
 
-# Gestion de chemin et fichiers (standard library, mais typing backport si besoin)
-# pathlib inclus nativement depuis Python 3.4, pas besoin de package externe
+# Extensions typing modernes
+typing-extensions>=4.8.0
+
+# Utilisé par gql pour les requêtes multipart
+requests_toolbelt>=0.10.1
+
+# (Optionnel mais recommandé pour JSON et parsing avancé)
+python-dotenv>=1.0.0
