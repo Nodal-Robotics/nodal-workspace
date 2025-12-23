@@ -1,0 +1,34 @@
+name: ADR – Detect and Initialize
+
+on:
+  issues:
+    types: [opened]
+
+permissions:
+  issues: write
+  discussions: write
+  contents: read
+
+jobs:
+  detect-adr:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install dependencies
+        run: |
+          pip install -r requirements.txt
+
+      - name: Detect ADR and create discussion
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          EVENT_PATH: ${{ github.event_path }}
+        run: |
+          python main.py detect-adr
