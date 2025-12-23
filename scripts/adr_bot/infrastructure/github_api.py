@@ -125,4 +125,16 @@ class GitHubAPI:
             "body": (
                 f"Cette discussion est liée à l’issue #{issue_id}.\n\n"
                 "Elle est utilisée pour documenter et valider une "
-                "Architecture
+                "Architecture Decision Record (ADR)."
+            ),
+            "category_id": category_id,
+        }
+
+        response = self.session.post(url, json=payload)
+        if response.status_code != 201:
+            raise GitHubAPIError(
+                f"Failed to create discussion: "
+                f"{response.status_code} {response.text}"
+            )
+
+        return response.json()
