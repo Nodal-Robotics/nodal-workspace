@@ -1,7 +1,7 @@
 from typing import Dict, Any
 
 from domain.adr import ADR
-from domain.adr_state import ADRState
+from domain.state import ADRState
 from infrastructure.json_repository import ADRJsonRepository
 from infrastructure.github_api import GitHubAPI
 

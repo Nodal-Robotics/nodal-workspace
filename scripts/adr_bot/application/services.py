@@ -1,6 +1,6 @@
 from domain.adr import ADR
-from domain.adr_state import ADRState
-from domain.adr_fsm import ADRFSM
+from domain.state import ADRState
+from domain.fsm import ADRFSM
 
 
 class ADRService:
