@@ -3,6 +3,7 @@ requests>=2.31.0
 
 # Typage optionnel (Python 3.11+ supporte nativement)
 typing-extensions>=4.8.0
+PyGithub>=1.59
 
 # Gestion de chemin et fichiers (standard library, mais typing backport si besoin)
 # pathlib inclus nativement depuis Python 3.4, pas besoin de package externe
