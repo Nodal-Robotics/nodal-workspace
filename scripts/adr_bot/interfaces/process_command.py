@@ -21,25 +21,34 @@ def handle_process_command(event: dict):
 
     comment = event["comment"]["body"]
     cmd, content = parse_command(comment)
-    issue_id = event["issue"]["number"]
 
+    # Détecte l’ID
+    if "issue" in event:
+        target_id = event["issue"]["number"]
+    elif "discussion" in event:
+        target_id = event["discussion"]["number"]
+    else:
+        raise ValueError("Impossible de déterminer la cible pour le command /adr")
+
+    # Exécution de la commande
     if cmd == "fill":
         section, _, text = content.partition("\n")
-        msg = use_cases.fill(issue_id, section.strip(), text.strip())
+        msg = use_cases.fill(target_id, section.strip(), text.strip())
     elif cmd == "append":
         section, _, text = content.partition("\n")
-        msg = use_cases.append(issue_id, section.strip(), text.strip())
+        msg = use_cases.append(target_id, section.strip(), text.strip())
     elif cmd == "propose":
-        msg = use_cases.propose(issue_id)
+        msg = use_cases.propose(target_id)
     elif cmd == "approve":
-        msg = use_cases.approve(issue_id)
+        msg = use_cases.approve(target_id)
     elif cmd == "supersede":
         old_id_str, new_id_str = content.strip().split()
         msg = use_cases.supersede(int(old_id_str), int(new_id_str))
     elif cmd == "refuse":
-        msg = use_cases.refuse(issue_id)
+        msg = use_cases.refuse(target_id)
     else:
         msg = "Commande inconnue."
 
-    adr = repo.load(issue_id)
+    # Récupère l'ADR pour poster le message
+    adr = repo.load(target_id)
     github.add_discussion_comment(adr.discussion_id, msg)
