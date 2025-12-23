@@ -1,23 +1,52 @@
-# scripts/adr_bot/parser.py
-from fsm import can_transition, next_status
-from state_io import load_state, save_state
+import re
+from adr_commands import VALID_SECTIONS
 
-def execute_command(command, payload=None):
-    state = load_state()
-    current_status = state["status"]
+ADR_CMD_RE = re.compile(
+    r"^/adr\s+(\w+)(?:\s+(\w+))?\s*$",
+    re.IGNORECASE
+)
 
-    # Vérification de transition
-    if can_transition(current_status, command):
-        new_status = next_status(current_status, command)
-        state["status"] = new_status
+# Commandes valides supportées
+VALID_COMMANDS = {"fill", "append", "show", "approve", "reject"}
 
-        # Gestion du contenu
-        if command in ("fill", "append") and payload:
-            state["content"].setdefault(command, []).append(payload)
-        save_state(state)
-        return {"status": "success", "new_status": str(new_status)}
-    else:
-        # Commandes valides mais sans changement d’état (show)
-        if command == "show":
-            return {"status": "show", "content": state["content"]}
-        return {"status": "error", "message": f"Commande '{command}' impossible depuis l'état {current_status}"}
+def parse_comment(body: str):
+    """
+    Retourne:
+      {
+        action: str,
+        section: str | None,
+        content: str | None
+      }
+    ou None si ce n'est pas une commande ADR
+    """
+
+    lines = body.strip().splitlines()
+    if not lines:
+        return None
+
+    match = ADR_CMD_RE.match(lines[0])
+    if not match:
+        return None
+
+    action = match.group(1).lower()
+    raw_section = match.group(2)
+
+    # Ignorer les commandes non supportées
+    if action not in VALID_COMMANDS:
+        print(f"⚠️  Unknown command: /adr {action} (ignored)")
+        return None
+
+    section = None
+    if raw_section:
+        key = raw_section.lower()
+        if key not in VALID_SECTIONS:
+            raise ValueError(f"Unknown ADR section: {raw_section}")
+        section = VALID_SECTIONS[key]
+
+    content = "\n".join(lines[1:]).strip() if len(lines) > 1 else None
+
+    return {
+        "action": action,
+        "section": section,
+        "content": content,
+    }
