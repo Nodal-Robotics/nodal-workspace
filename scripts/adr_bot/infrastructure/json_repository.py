@@ -1,6 +1,6 @@
 import json
 from pathlib import Path
-from domain.adr_state import ADR, ADRStatus
+from domain.state import ADR, ADRStatus
 
 class ADRArtifactRepository:
     """
@@ -28,7 +28,6 @@ class ADRArtifactRepository:
 
     def load(self, issue_id: int) -> ADR:
         path = self._path(issue_id)
-        from domain.adr_state import ADR
         if not path.exists():
             # Crée un ADR vide si absent
             adr = ADR(
