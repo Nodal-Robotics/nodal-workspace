@@ -1,84 +1,40 @@
-from typing import Dict, Any
-
-from domain.adr import ADR
-from domain.state import ADRState
-from infrastructure.json_repository import ADRJsonRepository
 from infrastructure.github_api import GitHubAPI
+from infrastructure.json_repository import ADRJsonRepository
+from application.use_cases import ADRUseCases
+from domain.state import ADR
 
+ADR_KEYWORDS = ["architecture", "architectural", "design decision", "adr",
+                "technical decision", "system design", "refactor", "redesign", "architectural choice"]
 
-ADR_KEYWORDS = [
-    "architecture",
-    "architectural",
-    "design decision",
-    "adr",
-    "technical decision",
-    "system design",
-    "refactor",
-    "redesign",
-    "architectural choice",
-]
+def is_adr_issue(title: str, body: str) -> bool:
+    text = f"{title} {body}".lower()
+    return any(k in text for k in ADR_KEYWORDS)
 
-
-def _is_adr_issue(title: str, body: str) -> bool:
-    text = f"{title}\n{body}".lower()
-    return any(keyword in text for keyword in ADR_KEYWORDS)
-
-
-def handle_detect_adr(event: Dict[str, Any]) -> None:
-    # Sécurité : ce handler ne doit répondre qu’aux issues
-    if "issue" not in event:
-        return
-
-    issue = event["issue"]
-    issue_id = issue["number"]
-    title = issue.get("title", "")
-    body = issue.get("body", "") or ""
-    author = issue["user"]["login"]
-
-    if not _is_adr_issue(title, body):
-        return  # ce n’est pas une ADR
-
-    repository = ADRJsonRepository(".adr/state")
-
-    # Idempotence : si l’ADR existe déjà, on ne refait rien
-    try:
-        repository.load(issue_id)
-        return
-    except FileNotFoundError:
-        pass
-
+def handle_detect_adr(issue: dict):
     github = GitHubAPI()
+    repo = ADRJsonRepository()
+    use_cases = ADRUseCases(repo, github)
 
-    discussion = github.get_or_create_discussion(
-        issue_id=issue_id,
-        issue_title=title
-    )
+    issue_id = issue["number"]
+    title = issue["title"]
 
-    adr = ADR(
-        issue_id=issue_id,
-        discussion_id=discussion["id"],
-        created_by=author,
-        state=ADRState.INIT.value,
-        sections={
-            "title": title,
-            "context": "",
-            "decision": "",
-            "options": "",
-            "consequences": "",
-            "status": "draft",
-        },
-    )
+    if not is_adr_issue(title, issue.get("body", "")):
+        return "Pas une ADR"
 
-    adr.add_history(author, "initialize ADR")
+    categories = github.get_discussion_categories()
+    cat = next((c for c in categories if c["name"] == "Architecture Decisions"), None)
+    if not cat:
+        return "Catégorie 'Architecture Decisions' introuvable."
 
-    repository.save(adr)
+    discussions = github.list_discussions(category_id=cat["id"])
+    existing = next((d for d in discussions if f"Issue #{issue_id}" in d["title"]), None)
+    if existing:
+        discussion_id = existing["id"]
+    else:
+        discussion = github.create_discussion(cat["id"], f"ADR – Issue #{issue_id} – {title}", "Discussion ADR")
+        discussion_id = discussion["id"]
 
-    github.post_discussion_message(
-        discussion_id=discussion["id"],
-        message=(
-            "ADR détectée à partir de l’issue.\n\n"
-            "État initialisé (`INIT`).\n\n"
-            "Utilisez les commandes `/adr fill`, `/adr append`, `/adr show` "
-            "pour compléter l’ADR."
-        ),
-    )
+    adr = ADR(issue_id=issue_id, title=title, discussion_id=discussion_id)
+    repo.save(adr)
+    github.add_discussion_comment(discussion_id, "ADR créée et prête à être remplie.")
+    return "ADR initialisée."
