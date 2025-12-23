@@ -28,7 +28,7 @@ jobs:
 
       - name: Detect ADR and create discussion
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_TOKEN: ${{ secrets.ADR_BOT_TOKEN }}
           EVENT_PATH: ${{ github.event_path }}
         run: |
           python scripts/adr_bot/main.py detect-adr
