@@ -1,14 +1,21 @@
 import json
 from pathlib import Path
-from domain.state import ADR
+from domain.adr_state import ADR, ADRStatus
 
-class ADRJsonRepository:
-    def __init__(self, base_path: str = "docs/governance/adr"):
+class ADRArtifactRepository:
+    """
+    Stockage des ADR via GitHub Actions artifacts.
+    """
+
+    def __init__(self, base_path: str = "/tmp/adr_artifacts"):
         self.base_path = Path(base_path)
         self.base_path.mkdir(parents=True, exist_ok=True)
 
+    def _path(self, issue_id: int) -> Path:
+        return self.base_path / f"adr_{issue_id}.json"
+
     def save(self, adr: ADR) -> None:
-        path = self.base_path / f"adr_{adr.issue_id}.json"
+        path = self._path(adr.issue_id)
         with path.open("w", encoding="utf-8") as f:
             json.dump({
                 "issue_id": adr.issue_id,
@@ -20,12 +27,22 @@ class ADRJsonRepository:
             }, f, indent=2)
 
     def load(self, issue_id: int) -> ADR:
-        path = self.base_path / f"adr_{issue_id}.json"
+        path = self._path(issue_id)
+        from domain.adr_state import ADR
         if not path.exists():
-            raise FileNotFoundError(f"ADR {issue_id} not found")
+            # Crée un ADR vide si absent
+            adr = ADR(
+                issue_id=issue_id,
+                title=f"ADR {issue_id}",
+                sections={"context": "", "decision": "", "options": "", "consequences": ""},
+                status=ADRStatus.DRAFT,
+                discussion_id=None
+            )
+            self.save(adr)
+            return adr
+
         with path.open("r", encoding="utf-8") as f:
             data = json.load(f)
-        from domain.state import ADR, ADRStatus
         return ADR(
             issue_id=data["issue_id"],
             title=data["title"],

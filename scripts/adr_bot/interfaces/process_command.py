@@ -1,5 +1,5 @@
 from infrastructure.github_api import GitHubAPI
-from infrastructure.json_repository import ADRJsonRepository
+from infrastructure.json_repository import ADRArtifactRepository
 from application.use_cases import ADRUseCases
 
 def parse_command(message: str) -> tuple[str, str]:
@@ -16,7 +16,7 @@ def parse_command(message: str) -> tuple[str, str]:
 
 def handle_process_command(event: dict):
     github = GitHubAPI()
-    repo = ADRJsonRepository()
+    repo = ADRArtifactRepository()
     use_cases = ADRUseCases(repo, github)
 
     comment = event["comment"]["body"]
