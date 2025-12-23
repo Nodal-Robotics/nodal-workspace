@@ -24,11 +24,11 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install -r requirements.txt
+          pip install -r scripts/adr_bot/requirements.txt
 
       - name: Detect ADR and create discussion
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           EVENT_PATH: ${{ github.event_path }}
         run: |
-          python main.py detect-adr
+          python scripts/adr_bot/main.py detect-adr
