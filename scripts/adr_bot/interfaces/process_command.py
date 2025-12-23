@@ -4,7 +4,7 @@ from interfaces.handlers import parse_command
 from infrastructure.json_repository import ADRJsonRepository
 from infrastructure.github_api import GitHubAPI, GitHubAPIError
 from application.use_cases import ADRUseCases
-from domain.adr_state import ADRState
+from domain.state import ADRState
 
 
 def handle_process_command(event: Dict[str, Any]) -> None:
