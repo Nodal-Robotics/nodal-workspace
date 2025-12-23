@@ -1,5 +1,5 @@
 from infrastructure.github_api import GitHubAPI
-from infrastructure.json_repository import ADRJsonRepository
+from infrastructure.json_repository import ADRArtifactRepository
 from application.use_cases import ADRUseCases
 from domain.state import ADR
 
@@ -12,7 +12,7 @@ def is_adr_issue(title: str, body: str) -> bool:
 
 def handle_detect_adr(issue: dict):
     github = GitHubAPI()
-    repo = ADRJsonRepository()
+    repo = ADRArtifactRepository()
     use_cases = ADRUseCases(repo, github)
 
     issue_id = issue["number"]

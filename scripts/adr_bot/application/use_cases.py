@@ -1,9 +1,9 @@
 from domain.state import ADR, ADRStatus
-from infrastructure.json_repository import ADRJsonRepository
+from infrastructure.json_repository import ADRArtifactRepository
 from infrastructure.github_api import GitHubAPI, GitHubAPIError
 
 class ADRUseCases:
-    def __init__(self, repository: ADRJsonRepository, github_client: GitHubAPI):
+    def __init__(self, repository: ADRArtifactRepository, github_client: GitHubAPI):
         self.repository = repository
         self.github = github_client
 

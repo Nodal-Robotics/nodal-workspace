@@ -1,35 +1,41 @@
 name: ADR – Process Commands
 
 on:
+  issues:
+    types: [opened]
   discussion_comment:
     types: [created]
 
-permissions:
-  discussions: write
-  contents: write
-
 jobs:
-  process-adr-command:
+  process_adr:
     runs-on: ubuntu-latest
-
     steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 0   # nécessaire pour commit/push
+      - uses: actions/checkout@v3
 
       - name: Set up Python
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v4
         with:
-          python-version: '3.11'
+          python-version: 3.11
 
       - name: Install dependencies
-        run: |
-          pip install -r scripts/adr_bot/requirements.txt
+        run: pip install -r scripts/adr_bot/requirements.txt
 
-      - name: Process ADR command
+      - name: Download ADR artifacts
+        uses: actions/download-artifact@v3
+        with:
+          path: /tmp/adr_artifacts
+          # optional: download all artifacts
+
+      - name: Run ADR bot
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          EVENT_PATH: ${{ github.event_path }}
-        run: |
-          python scripts/adr_bot/main.py process-command
+          GITHUB_TOKEN: ${{ secrets.ADR_BOT_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_EVENT_PATH: ${{ github.event_path }}
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+        run: python scripts/adr_bot/main.py
+
+      - name: Upload ADR artifacts
+        uses: actions/upload-artifact@v3
+        with:
+          name: adr_artifacts
+          path: /tmp/adr_artifacts
